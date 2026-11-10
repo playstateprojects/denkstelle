@@ -48,3 +48,22 @@ Run `npm run db:migrate` with a backup on a development database first. This mig
 ## Evaluation before production
 
 Use a small consented or openly licensed dataset (e.g. Polis or community feedback) and hand-label difficult pairs. Compare nearest-only retrieval with nearest+counterclaim; report pairwise precision/recall, contradiction retrieval recall, cluster purity and source-grounding error rate. Keep evaluation labels independent of model outputs. Run each model and prompt revision on the same frozen source set.
+
+## Status and next steps
+
+Work in small steps; tick these off as they land.
+
+- [x] Schema (`db/008_insights.sql`) and pure decision policy (`worker/src/insight-logic.ts`) with tests.
+- [ ] **Gate:** do not run migration 008 in production until the evaluation harness below exists.
+- [ ] Evaluation harness: ~30 hand-labelled statement pairs (include hard negatives and contradictions), run the classifier, report precision/recall per relation.
+- [ ] Compare nearest-only retrieval against nearest + counterclaim. Counterclaim search is an experiment, not a commitment; drop it (and its retrieval method) if recall gain is small.
+- [ ] Decide whether `insight_edges` and `nearest_insight` are needed before building them.
+
+Open questions:
+
+- **Cost:** up to N x 20 classifier calls per ingest, repeated per prompt/model version. Needs a pair + prompt_version cache and a cheap first-pass filter.
+- **Themes vs insights:** both exist during the transition. Decide when the UI switches and how `themes` data migrates.
+- **Review:** `candidate`/`reviewed` statuses need a review queue and UI, or they will pile up unread.
+- **Evidence integrity:** `relationship_assessments.evidence` is free-form jsonb; segment IDs are not FK-checked. Validate in the application layer or move to a join table.
+- **Assessment uniqueness:** duplicates per (pair, model, prompt_version) are currently allowed (audit log). Add a unique index if that is not intended.
+- **Revision bookkeeping:** `revision` / `updated_at` have no trigger and `superseded` is not tied to a successor by a constraint.

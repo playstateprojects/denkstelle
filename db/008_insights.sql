@@ -17,13 +17,19 @@ CREATE TABLE IF NOT EXISTS insights (
   revision integer NOT NULL DEFAULT 1 CHECK (revision > 0),
   created_by_model text,
   prompt_version text,
-  predecessor_id uuid REFERENCES insights(id) ON DELETE SET NULL,
+  predecessor_id uuid,
   created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CHECK (predecessor_id IS NULL OR predecessor_id <> id)
 );
 CREATE INDEX IF NOT EXISTS insights_project_idx ON insights(project_id,status);
 CREATE INDEX IF NOT EXISTS insights_embedding_idx ON insights USING hnsw (embedding vector_cosine_ops);
 CREATE UNIQUE INDEX IF NOT EXISTS insights_project_id_uq ON insights(project_id,id);
+-- Predecessor must live in the same project (needs the unique index above). SET NULL (column list, PG15+)
+-- clears only predecessor_id, since project_id is NOT NULL.
+ALTER TABLE insights DROP CONSTRAINT IF EXISTS insights_predecessor_fk;
+ALTER TABLE insights ADD CONSTRAINT insights_predecessor_fk
+  FOREIGN KEY (project_id,predecessor_id) REFERENCES insights(project_id,id) ON DELETE SET NULL (predecessor_id);
 
 -- This table represents evidence, never a destructive merge. One statement may support
 -- multiple insights, or challenge a given insight, without losing its original wording.
