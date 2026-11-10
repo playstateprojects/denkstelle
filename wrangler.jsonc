@@ -35,6 +35,10 @@
 			}
 		]
 	},
+	// Calls the processor's POST /cron (the dashboard "process now" button). Private: the processor has no public URL.
+	"services": [
+		{ "binding": "PROCESSOR_API", "service": "denkstelle-processor" }
+	],
 	"hyperdrive": [
 		{
 			"binding": "HYPERDRIVE",

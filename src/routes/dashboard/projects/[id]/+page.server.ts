@@ -36,6 +36,18 @@ export const actions:Actions={
       return {modeSaved:mode};
     }finally{await sql.end({timeout:1});}
   },
+  triggerProcessing:async({params,locals,url,platform})=>{
+    const u=requireAdmin(locals,url,platform);const sql=connect(platform);
+    try{await requireProjectAccess(sql,params.id,u.id)}finally{await sql.end({timeout:1})}
+    const api=platform?.env?.PROCESSOR_API;
+    if(!api)return fail(503,{message:'Processor is not connected (no PROCESSOR_API binding in this environment)'});
+    try{
+      const r=await api.fetch('https://processor/cron',{method:'POST'});
+      if(!r.ok)return fail(502,{message:`Processor responded ${r.status}`});
+      const b=await r.json() as {reaped?:number;overdue?:number};
+      return {triggered:{reaped:b.reaped??0,overdue:b.overdue??0}};
+    }catch(e){console.error('[trigger] processor call failed',e);return fail(502,{message:'Processor could not be reached'});}
+  },
   reprocess:async({request,params,locals,url,platform})=>{
     const u=requireAdmin(locals,url,platform);
     const id=String((await (request.formData())).get('sourceId')??'');
