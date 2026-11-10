@@ -19,6 +19,8 @@ declare global {
         };
         // Cloudflare Queue that wakes the processing worker (see processor/). Optional: absent in local dev.
         JOBS?: { send(message: { kind: 'upload' | 'approve' | 'reel' }): Promise<void> };
+        // Service binding to denkstelle-processor. Optional: absent in local dev.
+        PROCESSOR_API?: { fetch(input: string, init?: { method?: string }): Promise<Response> };
         AI?: { run: (model: string, input: Record<string, unknown>) => Promise<unknown> };
         DATABASE_URL?: string;
         BETTER_AUTH_SECRET?: string;

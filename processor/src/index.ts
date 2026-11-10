@@ -2,6 +2,7 @@
  *
  *   SvelteKit Worker --JOBS queue--> queue() --POST /drain--> Processor container (FFmpeg, Whisper, DeepSeek)
  *   cron (5 min)  --> scheduled(): requeue stuck jobs, re-poke if anything has been waiting too long
+ *   dashboard     --> fetch() POST /cron (service binding only, no public route): the same sweep, run on demand
  *
  * Postgres (processing_jobs) is the source of truth. A queue message only means "go look". Duplicates, lost
  * messages and retries are therefore harmless: claiming a job is atomic and the sweep re-pokes anything overdue.
@@ -23,7 +24,7 @@ interface Env {
   WORKERS_AI_API_TOKEN: string;
   DEEPSEEK_API_KEY: string;
 }
-type WakeMessage = {kind: 'upload' | 'approve' | 'retry' | 'sweep' | 'more'};
+type WakeMessage = {kind: 'upload' | 'approve' | 'retry' | 'sweep' | 'more' | 'manual'};
 type DrainResult = {processed: number; failed: number; retried: number; more: boolean};
 
 export class Processor extends Container<Env> {
@@ -71,6 +72,21 @@ async function drain(env: Env): Promise<DrainResult> {
   return (await res.json()) as DrainResult;
 }
 
+/** Requeue stuck jobs and wake the consumer if work is overdue. `force` (manual trigger) wakes it regardless. */
+async function sweep(env: Env, o: {force: boolean}): Promise<{reaped: number; overdue: number; woke: boolean}> {
+  const sql = postgres(env.DATABASE_URL, {max: 1, fetch_types: false});
+  try {
+    const reaped = await reapStuck(sql);
+    const overdue = await overdueCount(sql);
+    console.log(`[processor] sweep${o.force ? ' (manual)' : ''}: reaped ${reaped}, overdue ${overdue}`);
+    const woke = o.force || reaped > 0 || overdue > 0;
+    if (woke) await env.JOBS.send({kind: o.force ? 'manual' : 'sweep'});
+    return {reaped, overdue, woke};
+  } finally {
+    await sql.end({timeout: 1});
+  }
+}
+
 export default {
   async queue(batch: MessageBatch<WakeMessage>, env: Env): Promise<void> {
     // Every message means the same thing, so a whole batch is a single drain.
@@ -88,21 +104,21 @@ export default {
     }
   },
 
+  // Reachable only through a service binding: wrangler.jsonc turns off workers.dev and preview URLs, and there are no routes.
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const {pathname} = new URL(request.url);
+    if (request.method === 'POST' && pathname === '/cron') {
+      try {
+        return Response.json({ok: true, ...(await sweep(env, {force: true}))});
+      } catch (err) {
+        console.error('[processor] manual sweep failed', err);
+        return Response.json({ok: false, error: 'sweep failed'}, {status: 500});
+      }
+    }
+    return new Response('not found', {status: 404});
+  },
+
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(
-      (async () => {
-        const sql = postgres(env.DATABASE_URL, {max: 1, fetch_types: false});
-        try {
-          const reaped = await reapStuck(sql);
-          const overdue = await overdueCount(sql);
-          console.log(`[processor] sweep: reaped ${reaped}, overdue ${overdue}`);
-          if (reaped || overdue) await env.JOBS.send({kind: 'sweep'});
-        } catch (err) {
-          console.error('[processor] sweep failed', err);
-        } finally {
-          await sql.end({timeout: 1});
-        }
-      })(),
-    );
+    ctx.waitUntil(sweep(env, {force: false}).catch((err) => console.error('[processor] sweep failed', err)));
   },
 } satisfies ExportedHandler<Env, WakeMessage>;
