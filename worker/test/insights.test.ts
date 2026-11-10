@@ -56,3 +56,34 @@ test('classifications require evidence and provenance; uncertainty remains valid
  assert.throws(()=>validateAssessment({...assessment('supports'),confidence:2}),/confidence/);
  assert.doesNotThrow(()=>validateAssessment({...assessment('insufficient_context'),evidenceSegmentIds:[],confidence:null}));
 });
+
+import {score,parseClassification,buildUserPrompt,type Prediction} from '../src/insight-eval.ts';
+
+test('eval: parsing is strict and scoring counts failures against recall',()=>{
+ assert.equal(parseClassification({relation:'Equivalent',reason:'x',confidence:.9})?.relation,'equivalent');
+ assert.equal(parseClassification({relation:'same'}),null);
+ assert.equal(parseClassification({relation:'related',confidence:3})?.confidence,null);
+ const p:Prediction[]=[
+  {id:'1',gold:'equivalent',pred:'equivalent'},
+  {id:'2',gold:'related',pred:'equivalent'},
+  {id:'3',gold:'contradicts',pred:null},
+  {id:'4',gold:'contradicts',pred:'contradicts'},
+  {id:'5',gold:'unrelated',pred:'insufficient_context'}
+ ];
+ const r=score(p);
+ assert.equal(r.parseFailures,1);
+ assert.equal(r.accuracy,2/5);
+ assert.equal(r.falseMergeRate,1/3);          // 1 of 3 non-equivalent answered pairs predicted equivalent
+ assert.equal(r.contradictionRecall,1/2);     // the failed parse is a miss
+ assert.equal(r.overAbstainRate,1/4);
+});
+
+test('eval: swap consistency maps directional relations and ignores unscored pairs',()=>{
+ const r=score([
+  {id:'1',gold:'equivalent',pred:'equivalent',swapPred:'equivalent'},
+  {id:'2',gold:'contradicts',pred:'contradicts',swapPred:'related'},
+  {id:'3',gold:'supports',pred:'supports',swapPred:'elaborates'}   // directional: not in the symmetric set
+ ]);
+ assert.equal(r.swapConsistency,1/2);
+ assert.match(buildUserPrompt({from:'a',to:'b',fromContext:'c'}),/context for A: c/);
+});

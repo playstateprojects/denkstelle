@@ -55,7 +55,9 @@ Work in small steps; tick these off as they land.
 
 - [x] Schema (`db/008_insights.sql`) and pure decision policy (`worker/src/insight-logic.ts`) with tests.
 - [ ] **Gate:** do not run migration 008 in production until the evaluation harness below exists.
-- [ ] Evaluation harness: ~30 hand-labelled statement pairs (include hard negatives and contradictions), run the classifier, report precision/recall per relation.
+- [x] Classifier evaluation harness: `npm run eval:insights -- --pairs eval/pairs.jsonl --model mistral-large --swap` (format in `eval/pairs.example.jsonl`; reports per-relation precision/recall, false-merge rate, contradiction recall, over-abstention and A/B swap consistency).
+- [ ] Write ~30 real hand-labelled pairs into `eval/pairs.jsonl` (git-ignored; include hard negatives, contradictions, can't-tell cases) and run it on each configured model. Decide from the numbers whether the classifier is good enough to continue.
+- [ ] Retrieval evaluation: nearest-only vs nearest + counterclaim, measuring contradiction recall against the labelled set.
 - [ ] Compare nearest-only retrieval against nearest + counterclaim. Counterclaim search is an experiment, not a commitment; drop it (and its retrieval method) if recall gain is small.
 - [ ] Decide whether `insight_edges` and `nearest_insight` are needed before building them.
 

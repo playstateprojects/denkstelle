@@ -12,3 +12,7 @@ build/
 # processing worker
 processor/.secrets
 worker/node_modules/
+
+# Insight evaluation: real labelled pairs and results come from interview data
+eval/pairs.jsonl
+eval/results/
