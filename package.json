@@ -14,7 +14,7 @@
     "admin:grant": "node --env-file=.env --import tsx scripts/grant-admin.ts",
     "db:migrate": "node --env-file=.env --import tsx scripts/migrate.ts",
     "worker:dev": "node --env-file=.env --import tsx worker/src/server.ts",
-    "test:worker": "node --import tsx --test worker/test/queue.test.ts worker/test/reel.test.ts",
+    "test:worker": "node --import tsx --test worker/test/queue.test.ts worker/test/reel.test.ts worker/test/insights.test.ts",
     "check:worker": "tsc -p worker/tsconfig.json && tsc -p processor/tsconfig.json",
     "deploy": "wrangler deploy",
     "deploy:processor": "wrangler deploy -c processor/wrangler.jsonc",
