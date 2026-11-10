@@ -1,0 +1,16 @@
+{
+  "name": "denkstelle-worker",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Processing container: FFmpeg + Whisper + DeepSeek ingest and highlight rendering",
+  "scripts": {
+    "start": "node --import tsx src/server.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.888.0",
+    "postgres": "^3.4.9",
+    "tsx": "^4.23.15",
+    "zod": "^4.2.1"
+  }
+}

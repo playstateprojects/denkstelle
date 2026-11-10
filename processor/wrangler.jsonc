@@ -1,0 +1,47 @@
+{
+	// Processing worker: queue consumer + cron sweep + the FFmpeg container. The SvelteKit app (../wrangler.jsonc)
+	// only produces messages to the same queue.
+	// Deploy: npm run deploy:processor   (needs Docker running locally to build the container image)
+	"$schema": "../node_modules/wrangler/config-schema.json",
+	"name": "denkstelle-processor",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-11-05",
+	"compatibility_flags": ["nodejs_compat"],
+	"observability": { "enabled": true },
+
+	"triggers": { "crons": ["*/5 * * * *"] },
+
+	"containers": [
+		{
+			"class_name": "Processor",
+			"image": "../worker/Dockerfile",
+			"image_build_context": "../worker",
+			// 1 vCPU / 6 GiB: FFmpeg x264 + captions renders in a reasonable time; CPU is billed on active use only.
+			"instance_type": "standard-2",
+			// One instance works through the queue serially. Raise this (and queue max_concurrency) if you need parallelism.
+			"max_instances": 1
+		}
+	],
+	"durable_objects": { "bindings": [{ "name": "PROCESSOR", "class_name": "Processor" }] },
+	"migrations": [{ "tag": "v1", "new_sqlite_classes": ["Processor"] }],
+
+	"queues": {
+		"producers": [{ "binding": "JOBS", "queue": "denkstelle-jobs" }],
+		"consumers": [
+			{
+				"queue": "denkstelle-jobs",
+				"max_batch_size": 10,
+				"max_batch_timeout": 2,
+				"max_concurrency": 1,
+				"max_retries": 5
+			}
+		]
+	},
+
+	// Same Hyperdrive config as the SvelteKit app; used by the cron sweep (the container uses DATABASE_URL directly).
+	"hyperdrive": [{ "binding": "HYPERDRIVE", "id": "cd999975c2b74e6b881d9335dbe4ecb0" }],
+
+	"vars": { "R2_BUCKET": "denkstelle-private" }
+	// Secrets (not in this file): DATABASE_URL, R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY,
+	// WORKERS_AI_API_TOKEN, DEEPSEEK_API_KEY. See processor/secrets.example.
+}

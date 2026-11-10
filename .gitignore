@@ -1,0 +1,14 @@
+node_modules/
+.svelte-kit/
+build/
+.wrangler/
+.env
+.env.*
+!.env.example
+.dev.vars
+.DS_Store
+*.log
+
+# processing worker
+processor/.secrets
+worker/node_modules/

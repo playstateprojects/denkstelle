@@ -1,0 +1,44 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "denkstelle",
+	"main": ".svelte-kit/cloudflare/_worker.js",
+	"compatibility_date": "2026-11-05",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"assets": {
+		"binding": "ASSETS",
+		"directory": ".svelte-kit/cloudflare"
+	},
+	"ai": {
+		"binding": "AI"
+	},
+	"r2_buckets": [
+		{
+			"binding": "MEDIA",
+			"bucket_name": "denkstelle-private",
+			// Dev uses the real bucket: the processor reads from it, and local (Miniflare) R2 is invisible to it.
+			"remote": true
+		},
+		{
+			"bucket_name": "denkstelle-private",
+			"binding": "denkstelle_private",
+			"remote": true
+		}
+	],
+	// Producer only: the consumer, cron sweep and FFmpeg container live in ./processor (denkstelle-processor).
+	"queues": {
+		"producers": [
+			{
+				"binding": "JOBS",
+				"queue": "denkstelle-jobs"
+			}
+		]
+	},
+	"hyperdrive": [
+		{
+			"binding": "HYPERDRIVE",
+			"id": "cd999975c2b74e6b881d9335dbe4ecb0"
+		}
+	]
+}
