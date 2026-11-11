@@ -15,6 +15,8 @@
     "db:migrate": "node --env-file=.env --import tsx scripts/migrate.ts",
     "worker:dev": "node --env-file=.env --import tsx worker/src/server.ts",
     "test:worker": "node --import tsx --test worker/test/queue.test.ts worker/test/reel.test.ts worker/test/insights.test.ts",
+    "mine:pairs": "node --import tsx scripts/mine-pairs.ts",
+    "label:pairs": "node --import tsx scripts/label-pairs.ts",
     "eval:insights": "node --env-file=.env --import tsx scripts/eval-insights.ts",
     "check:worker": "tsc -p worker/tsconfig.json && tsc -p processor/tsconfig.json",
     "deploy": "wrangler deploy",
