@@ -5,6 +5,7 @@
   import {useI18n,type Key} from '$lib/i18n';
   let greetingBusy=$state(false);
   let contextBusy=$state(false);
+  let reportBusy=$state(false);
   const kb=(n:number)=>n>=1048576?`${(n/1048576).toFixed(1)} MB`:`${Math.max(1,Math.round(n/1024))} KB`;
   const {t,locale}=useI18n();
   const fmt=(d:string)=>new Date(d).toLocaleDateString(locale,{day:'numeric',month:'short',year:'numeric'});
@@ -40,6 +41,13 @@
     <div><button class="btn secondary" disabled={contextBusy}>{contextBusy?t('ctx.uploading'):t('ctx.addText')}</button></div>
   </form>
   {#if form?.contextError}<p class="error" role="alert">{t(`ctx.err.${form.contextError}` as Key)}</p>{:else if form?.contextSaved}<p class="tiny muted">{t('ctx.saved',{title:form.contextSaved.title,n:form.contextSaved.chunks})}</p>{/if}
+</section>
+<section class="panel stack" style="margin-bottom:18px"><div><div class="eyebrow">{t('report.eyebrow')}</div><p class="tiny muted" style="margin:4px 0 0">{t('report.hint')}</p></div>
+  <form method="POST" action="?/emailReport" use:enhance={()=>{reportBusy=true;return async({update})=>{await update({reset:false});reportBusy=false}}} class="row" style="flex-wrap:wrap">
+    <input class="field" style="flex:1;min-width:220px;margin:0" type="email" name="email" value={data.userEmail} aria-label={t('report.email')} placeholder={t('report.email')} maxlength="254" required />
+    <button class="btn" disabled={reportBusy}>{reportBusy?t('report.sending'):t('report.send')}</button>
+  </form>
+  {#if form?.reportError}<p class="error" role="alert">{t(`report.err.${form.reportError}` as Key)}</p>{:else if form?.reportSent}<p class="tiny muted">{t('report.sent',{email:form.reportSent})}</p>{/if}
 </section>
 <section class="grid"><div class="panel"><div class="eyebrow">{t('proj.videos')}</div><div class="big-number">{data.sources.length}</div></div><div class="panel"><div class="eyebrow">{t('proj.themes')}</div><div class="big-number">{data.themes.length}</div></div><div class="panel"><div class="eyebrow">{t('proj.highlightSuggestions')}</div><div class="big-number">{data.highlights.length}</div></div></section>
 {#if data.report && data.report.report && typeof data.report.report==='object'}<section class="panel" style="margin-top:18px"><div class="eyebrow">{t('proj.lastReport')}</div><h2>{t('proj.noticed')}</h2><p class="muted">{(data.report.report as {latestSourceSummary?:string}).latestSourceSummary??t('proj.noSummary')}</p><small class="muted">{t('proj.reportNote')}</small></section>{/if}

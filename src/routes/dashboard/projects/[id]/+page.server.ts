@@ -6,6 +6,12 @@ import {isCaptureMode,mediaBucket,maxGreetingBytes,greetingMime,mediaExtension} 
 import {getActiveModel,loadPrompts} from '../../../../../worker/src/prompts';
 import {contextFileKind,titleFromFilename,maxContextBytes,maxContextChars,maxContextDocs} from '$lib/context-text';
 import {ContextError,pdfPages,textPages,saveContext} from '$lib/server/context';
+import {z} from 'zod';
+import {Resend} from 'resend';
+import {config} from '$lib/server/db';
+import {translate} from '$lib/i18n';
+import {renderReport} from '$lib/project-report';
+import {loadReport} from '$lib/server/report';
 type ContextDoc={id:string;title:string;kind:string;status:string;size_bytes:number|null;created_at:string;analysis:{chars?:number;chunks?:number;pages?:number;extract?:boolean;cursor?:number;statements?:number}|null};
 type Insight={id:string;theme_id:string;title:string;description:string;evidence:{text:string;source_id:string;source:string;start_ms:number|null;page:number|null;from_text:boolean}[]};
 export const load:PageServerLoad=async({params,locals,url,platform})=>{
@@ -44,7 +50,7 @@ export const load:PageServerLoad=async({params,locals,url,platform})=>{
     });
     const [g]=await sql<{phone_greeting_key:string|null;phone_greeting_mime:string|null;phone_greeting_url:string|null;phone_greeting_updated_at:Date|null}[]>`select phone_greeting_key,phone_greeting_mime,phone_greeting_url,phone_greeting_updated_at from projects where id=${params.id}`;
     const greeting={uploaded:!!g?.phone_greeting_key,externalUrl:g?.phone_greeting_url??null,version:g?.phone_greeting_updated_at?.getTime()??0};
-    return {project,sources:marked,themes:themes.map(th=>({...th,insights:insights.filter(i=>i.theme_id===th.id)})),highlights,report:reports[0]??null,greeting,contextDocs};
+    return {project,sources:marked,themes:themes.map(th=>({...th,insights:insights.filter(i=>i.theme_id===th.id)})),highlights,report:reports[0]??null,greeting,contextDocs,userEmail:u.email};
   } finally {await sql.end({timeout:1});}
 };
 
@@ -157,6 +163,23 @@ export const actions:Actions={
       await sql`delete from themes t where t.project_id=${params.id} and not exists (select 1 from statement_themes x where x.theme_id=t.id)`;
       await sql`delete from insights i where i.project_id=${params.id} and not exists (select 1 from insight_evidence e where e.insight_id=i.id)`;
       return {contextRemoved:id};
+    }finally{await sql.end({timeout:1});}
+  },
+  // Sends the project report (numbers, top themes, top insights of the leading themes) to one address, in the sender's language.
+  emailReport:async({request,params,locals,url,platform})=>{
+    const u=requireAdmin(locals,url,platform);
+    const to=z.email().max(254).safeParse(String((await request.formData()).get('email')??'').trim());
+    if(!to.success)return fail(400,{reportError:'badEmail'});
+    const cfg=config(platform);
+    if(!cfg.resendKey)return fail(503,{reportError:'notConfigured'});
+    const sql=connect(platform);
+    try{
+      const project=await requireProjectAccess(sql,params.id,u.id);
+      const data=await loadReport(sql,project,`${cfg.publicOrigin??url.origin}/dashboard/projects/${project.id}`);
+      const mail=renderReport(data,(key,p)=>translate(locals.locale,key,p));
+      const {error:sendError}=await new Resend(cfg.resendKey).emails.send({from:cfg.emailFrom??'Denkstelle <onboarding@resend.dev>',to:to.data,subject:mail.subject,text:mail.text,html:mail.html});
+      if(sendError){console.error('[report] email failed',sendError);return fail(502,{reportError:'failed'});}
+      return {reportSent:to.data};
     }finally{await sql.end({timeout:1});}
   },
   reprocess:async({request,params,locals,url,platform})=>{

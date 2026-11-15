@@ -25,32 +25,38 @@ Rules:
 - A statement is an idea, claim, image, motif, tension or recurring concern that the cited passages themselves put forward. Write it as something the text says or does, never as the opinion of a reader.
 - Every statement MUST be directly supported by the passage numbers it cites. Do not use outside knowledge about the text, its author or its critics, and do not invent a quotation.
 - Where a passage is ambiguous, dense or experimental, say what it evokes or plays with, tentatively, instead of asserting one reading.
-- 3-10 meaningful statements for the whole window: not trivia, and not one per passage. Each must stand on its own: name the idea explicitly rather than relying on "this" or "that".
+- ONE claim per statement. If a sentence needs "and", ";" or "while" to join two different points, write two statements, each citing its own passages. Never merge points from different passages into one statement.
+- Keep who does what to whom exactly as the passage has it: do not swap subject and object, and preserve negations and qualifications ("man is indifferent to pure knowledge" is not "pure knowledge is indifferent to man").
+- 4-15 meaningful statements for the whole window: not trivia, and not one per passage. Each must stand on its own: name the idea explicitly rather than relying on "this" or "that".
 - Write in the language of the passages. Do not infer anything about real people named in the text beyond what it says.`},
  {key:'themes_system',label:'Shared themes',kind:'text',
-  help:'System prompt for the project-wide theme pass, which runs after every finished interview over ALL statements and re-derives the themes. The sample tester does not exercise this prompt. Must keep asking for the JSON shape below.',
-  default:`You find the themes shared ACROSS a set of interviews. Input: numbered statements, each tagged with the interview it came from (I1, I2, ...). Produce valid JSON only:
+  help:'System prompt for the project-wide theme pass, which runs after every finished interview or reference text over ALL statements and re-derives the themes: a few broad threads that cut across sources. The sample tester does not exercise this prompt. Must keep asking for the JSON shape below.',
+  default:`You find the threads that run ACROSS the sources of one project. Input: the PROJECT QUESTION and numbered statements, each tagged with the source it came from (I1, I2, ... are interviews; T1, T2, ... are reference texts). Produce valid JSON only:
 {"themes":[{"name":"2-6 word label","description":"one neutral sentence describing the thread","statement_ids":[0,4,7]}]}.
 Rules:
-- A theme is a concern, argument or experience that at least TWO different interviews touch on, even when their surface topics differ. Look for the underlying thread, not shared keywords: an interview about children being shown AI nature images that may be hallucinated and another about a child's AI-generated colouring book share the thread "children absorbing unreliable AI content".
-- Every substantive idea gets surfaced. If a thread appears in only one interview, it still becomes its own theme; do not drop it or force it into an unrelated shared theme. Only small talk and check-ins belong to no theme.
-- Shared threads come first: before creating a one-interview theme, check whether it is really the same thread as another interview's and merge them. Themes are ranked by how many interviews raise them, so the grouping must be honest.
-- A statement may belong to several themes.
-- Names are specific and informative ("Artists not compensated", "Nuance flattened by AI"), never generic ("AI ethics", "Risks", "Concerns"). Write them in the language of the statements.
-- Each theme is ONE thread. If its description needs "and" to join two different concerns, split it (e.g. children being misled by hallucinated content is a different thread from young people's self-image and unattainable standards, even though both involve children).
-- Aim for roughly one theme per 2-4 statements. Merge themes that only differ in wording.
-- Do not infer agreement. Interviews on one theme may disagree; the description names the thread, not a conclusion.
-- If PREVIOUS THEMES are listed, keep a name exactly when its thread still holds, adding or dropping statements as the evidence changes, so labels stay stable as interviews arrive. Rename, merge or split only when the evidence demands it.`},
+- A theme is an issue that bears on the project question and that several sources speak to, whatever words each one uses. It is not a summary of one source and not a chapter of one source.
+- Sources rarely share vocabulary. Find the issue underneath: one source saying rent keeps rising, another that flats are turned into holiday lets, and a third that adult children move back in with their parents all speak to "Housing out of reach". Name the theme in neutral words that fit every source in it, never in one source's own terms.
+- Work across before within. For every candidate theme, go through EACH other source and ask whether any of its statements speaks to the same issue, including by disagreeing with it or approaching it from another side. Add those statements. Sources that take opposite positions on one issue belong in the SAME theme.
+- Keep themes few and broad: usually 5 to 12 for a whole project. More statements mean fuller themes, not more themes. A detail, example or step of an argument joins the theme it serves; it does not become a theme of its own.
+- A theme may rest on a single source only when you have checked every other source and none speaks to that issue. Never invent a link to avoid this: two statements that merely share a word or an image do not share a theme.
+- Every substantive statement belongs to at least one theme, and to several when it genuinely speaks to several. Only small talk, check-ins and pure asides belong to none.
+- One theme is one issue. Split it when its statements would not be answers to the same question; do not split it because its sources disagree or use different examples.
+- The description names the issue in one neutral sentence. Where the statements pull in different directions, say that they do, without saying who is right. Do not infer agreement, and never count reference texts as people.
+- Names are specific and informative ("Artists not compensated", "Whether words fit things"), never generic ("Language", "Risks", "Concerns"). Write names and descriptions in the language most statements use, and never mention statement numbers or source tags in them.
+- If PREVIOUS THEMES are listed, keep a name exactly when it already is a cross-source thread that still holds, so labels stay stable as sources arrive. Fold previous themes that are narrower than a thread, or that follow a single source's wording, into the broader theme they belong to.`},
  {key:'insights_system',label:'Theme insights',kind:'text',
   help:'System prompt for the insight pass, which runs once per theme whenever that theme\'s statements change. It receives ONE theme and its statements and derives insights, each citing the statements it rests on. The code drops insights without valid citations. Must keep asking for the JSON shape below.',
-  default:`You derive insights from ONE theme of an interview project. Input: the PROJECT QUESTION, a THEME (name and description) and its numbered STATEMENTS, each tagged with the interview it came from (I1, I2, ...). Produce valid JSON only:
+  default:`You derive insights from ONE theme of an interview project. Input: the PROJECT QUESTION, a THEME (name and description) and its numbered STATEMENTS, each tagged with the source it came from (I1, I2, ... are interviews; T1, T2, ... are reference texts, listed by title under REFERENCE TEXTS). Produce valid JSON only:
 {"insights":[{"title":"4-10 word finding","description":"one or two sentences","statement_ids":[0,3]}]}.
 Rules:
 - An insight is what someone answering the project question should take away from this theme: a finding, a tension or an open need. It says more than the theme name and more than any single statement repeated.
 - Every insight rests ONLY on the statements given and lists every statement it rests on in statement_ids. Never use outside knowledge, and never cite a statement that does not back the insight.
-- 1-3 insights per theme. Return an empty list when the statements are too thin to say anything beyond themselves.
+- Every insight connects at least TWO statements: what they add up to, where they pull apart, or what they leave open. An insight that cites one statement is discarded, so never paraphrase a single statement or the theme description.
+- 0-3 insights per theme. Return an empty list when the statements are too thin to say anything beyond themselves.
 - Do not claim agreement, consensus or a majority. When statements disagree, the insight names the disagreement and cites both sides instead of picking one.
 - An insight backed by a single interview is fine; word it as one perspective, not a pattern.
+- When an insight draws on reference texts, say which text holds which position, by title, so a reader can tell whose claim is whose.
+- Statement numbers and source tags go ONLY in statement_ids. The title and description are read without the statement list, so never write "statement 2", "(0)" or "I1" in them; say what the statement says instead.
 - Do not infer demographics or sensitive traits. Write in the language of the statements.`},
  {key:'reel_rate_system',label:'Reel: rate snippets',kind:'text',
   help:'System prompt for the theme-reel composer. For ONE theme it receives candidate snippets (verbatim transcript) and rates each. The code computes the final score from the criteria with its own weights and chooses; the model only rates. Must keep asking for the JSON shape below.',

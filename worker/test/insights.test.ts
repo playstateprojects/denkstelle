@@ -11,13 +11,13 @@ test('citations map back to statement ids; unknown and duplicate numbers are dro
  assert.deepEqual(i,{title:'Finding',description:'d',statementIds:['c','a']});
 });
 
-test('an insight with no valid evidence is dropped',()=>{
- const out=ground({insights:[insight('Unbacked',[]),insight('Invented',[7]),insight('Backed',[1])]},statements);
+test('an insight resting on fewer than two valid statements is dropped',()=>{
+ const out=ground({insights:[insight('Unbacked',[]),insight('Invented',[7,8]),insight('Paraphrase',[1]),insight('Half invented',[1,9]),insight('Backed',[1,2])]},statements);
  assert.deepEqual(out.map(i=>i.title),['Backed']);
 });
 
 test('at most MAX_PER_THEME insights survive',()=>{
- const out=ground({insights:Array.from({length:MAX_PER_THEME+2},(_,n)=>insight(`I${n}`,[0]))},statements);
+ const out=ground({insights:Array.from({length:MAX_PER_THEME+2},(_,n)=>insight(`I${n}`,[0,1]))},statements);
  assert.equal(out.length,MAX_PER_THEME);
 });
 

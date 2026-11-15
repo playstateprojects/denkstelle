@@ -10,7 +10,7 @@ import type {Sql} from 'postgres';
 import {modelDef,llmComplete,parseJson,LlmError,type Env} from './models.ts';
 import type {Prompts} from './prompts.ts';
 import {embeddings,vector} from './utils.ts';
-import {sourceLabels,TEXT_NOTE} from './labels.ts';
+import {sourceLabels,textNote} from './labels.ts';
 
 /** A theme needs statements from at least this many sources. The reference text counts as a source for this
  * threshold, so a theme only the text raises still exists; its `sourceCount` (the ranking) counts interviews only. */
@@ -20,10 +20,10 @@ const Synthesis=z.object({themes:z.array(z.object({
   name:z.string().min(2),
   description:z.string().default(''),
   statement_ids:z.array(z.number().int().nonnegative()).min(1)
-})).max(40)});
+}))});
 
 /** `fromText`: read from the project's reference text (role 'context'), not said by an interviewee. */
-export type ThemeStatement={id:string;sourceId:string;text:string;fromText?:boolean};
+export type ThemeStatement={id:string;sourceId:string;text:string;fromText?:boolean;sourceTitle?:string};
 /** `sourceCount` is the number of INTERVIEWS behind the theme; the reference text never counts as one. */
 export type SynthesizedTheme={name:string;description:string;statementIds:string[];sourceCount:number};
 export class ThemeError extends LlmError{}
@@ -39,7 +39,7 @@ export async function synthesize(env:Env,modelId:string,prompts:Prompts,input:{q
  const user=[
   `PROJECT QUESTION: ${input.question}`,
   `PREVIOUS THEMES:\n${input.previous.length?input.previous.map(t=>`- ${t.name}${t.description?`: ${t.description}`:''}`).join('\n'):'(none)'}`,
-  ...(input.statements.some(s=>s.fromText)?[TEXT_NOTE]:[]),
+  ...[textNote(input.statements,label)].filter((x):x is string=>!!x),
   `STATEMENTS:\n${input.statements.map((s,i)=>`[${i}] (${label.get(s.sourceId)}) ${s.text}`).join('\n')}`,
   'Return JSON.'
  ].join('\n\n');
@@ -68,10 +68,10 @@ export async function rebuildThemes(sql:Sql,env:Env,modelId:string,prompts:Promp
  const [project]=await sql<{question:string}[]>`select question from projects where id=${projectId}`;
  if(!project)throw new Error(`No project ${projectId}`);
  // Context documents contribute their statements too. A document still being read ('processing') is left out until it is ready.
- const rows=await sql<{id:string;source_id:string;text:string;from_text:boolean}[]>`
-  select st.id,st.source_id,st.text,s.role='context' as from_text from statements st join sources s on s.id=st.source_id
+ const rows=await sql<{id:string;source_id:string;text:string;from_text:boolean;source_title:string}[]>`
+  select st.id,st.source_id,st.text,s.role='context' as from_text,s.title as source_title from statements st join sources s on s.id=st.source_id
   where st.project_id=${projectId} and s.status='ready' order by s.created_at,st.created_at,st.id`;
- const statements=rows.map(r=>({id:r.id,sourceId:r.source_id,text:r.text,fromText:r.from_text}));
+ const statements=rows.map(r=>({id:r.id,sourceId:r.source_id,text:r.text,fromText:r.from_text,sourceTitle:r.source_title}));
  const previous=await sql<{name:string;description:string|null}[]>`select name,description from themes where project_id=${projectId} order by name`;
  const {themes}=await synthesize(env,modelId,prompts,{question:project.question,statements,previous});
  const themed=new Set(themes.flatMap(t=>t.statementIds));

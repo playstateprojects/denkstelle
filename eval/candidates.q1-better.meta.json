@@ -1,0 +1,524 @@
+[
+ {
+  "id": "st-001",
+  "bucket": "mid",
+  "sim": 0.437,
+  "langPair": "de-en",
+  "from": "de-04#4",
+  "to": "en-04#6"
+ },
+ {
+  "id": "st-002",
+  "bucket": "far",
+  "sim": 0.115,
+  "langPair": "de-en",
+  "from": "de-03#8",
+  "to": "en-02#1"
+ },
+ {
+  "id": "st-003",
+  "bucket": "planted",
+  "sim": 0.421,
+  "langPair": "de-en",
+  "from": "en-03#4",
+  "to": "de-04#3",
+  "plantHint": "contradicts",
+  "plantTopic": "too expensive vs price ok"
+ },
+ {
+  "id": "st-004",
+  "bucket": "near",
+  "sim": 0.685,
+  "langPair": "en-en",
+  "from": "en-05#0",
+  "to": "en-02#5"
+ },
+ {
+  "id": "st-005",
+  "bucket": "planted",
+  "sim": 0.7,
+  "langPair": "de-en",
+  "from": "de-02#0",
+  "to": "en-02#0",
+  "plantHint": "equivalent",
+  "plantTopic": "newcomers get no orientation (cross-lingual)"
+ },
+ {
+  "id": "st-006",
+  "bucket": "mid",
+  "sim": 0.447,
+  "langPair": "en-en",
+  "from": "en-04#3",
+  "to": "en-01#2"
+ },
+ {
+  "id": "st-007",
+  "bucket": "mid",
+  "sim": 0.533,
+  "langPair": "de-de",
+  "from": "de-02#6",
+  "to": "de-06#5"
+ },
+ {
+  "id": "st-008",
+  "bucket": "planted",
+  "sim": 0.497,
+  "langPair": "de-en",
+  "from": "de-06#3",
+  "to": "en-06#4",
+  "plantHint": "contradicts",
+  "plantTopic": "more English/bilingual events vs English is good (compatible? tests whether model over-reads conflict; may be related)"
+ },
+ {
+  "id": "st-009",
+  "bucket": "mid",
+  "sim": 0.432,
+  "langPair": "en-en",
+  "from": "en-03#5",
+  "to": "en-05#6"
+ },
+ {
+  "id": "st-010",
+  "bucket": "near",
+  "sim": 0.813,
+  "langPair": "en-en",
+  "from": "en-02#5",
+  "to": "en-04#0"
+ },
+ {
+  "id": "st-011",
+  "bucket": "planted",
+  "sim": 0.551,
+  "langPair": "de-en",
+  "from": "en-02#3",
+  "to": "de-06#4",
+  "plantHint": "equivalent",
+  "plantTopic": "machines lack instructions (cross-lingual)"
+ },
+ {
+  "id": "st-012",
+  "bucket": "mid",
+  "sim": 0.447,
+  "langPair": "de-en",
+  "from": "en-05#1",
+  "to": "de-05#0"
+ },
+ {
+  "id": "st-013",
+  "bucket": "planted",
+  "sim": 0.505,
+  "langPair": "de-de",
+  "from": "de-06#4",
+  "to": "de-04#6",
+  "plantHint": "related",
+  "plantTopic": "outdated instructions vs missing instructions (not the same claim)"
+ },
+ {
+  "id": "st-014",
+  "bucket": "far",
+  "sim": 0.141,
+  "langPair": "de-en",
+  "from": "en-04#5",
+  "to": "de-06#7"
+ },
+ {
+  "id": "st-015",
+  "bucket": "near",
+  "sim": 0.667,
+  "langPair": "en-en",
+  "from": "en-04#2",
+  "to": "en-03#7"
+ },
+ {
+  "id": "st-016",
+  "bucket": "far",
+  "sim": 0.241,
+  "langPair": "de-de",
+  "from": "de-02#5",
+  "to": "de-03#6"
+ },
+ {
+  "id": "st-017",
+  "bucket": "far",
+  "sim": 0.277,
+  "langPair": "de-en",
+  "from": "de-04#6",
+  "to": "en-06#3"
+ },
+ {
+  "id": "st-018",
+  "bucket": "mid",
+  "sim": 0.507,
+  "langPair": "en-en",
+  "from": "en-04#3",
+  "to": "en-02#4"
+ },
+ {
+  "id": "st-019",
+  "bucket": "planted",
+  "sim": 0.486,
+  "langPair": "de-en",
+  "from": "de-01#3",
+  "to": "en-01#5",
+  "plantHint": "equivalent",
+  "plantTopic": "nowhere to leave projects, want lockers (cross-lingual)"
+ },
+ {
+  "id": "st-020",
+  "bucket": "far",
+  "sim": 0.129,
+  "langPair": "de-en",
+  "from": "de-02#1",
+  "to": "en-03#6"
+ },
+ {
+  "id": "st-021",
+  "bucket": "far",
+  "sim": 0.211,
+  "langPair": "de-en",
+  "from": "en-05#2",
+  "to": "de-01#2"
+ },
+ {
+  "id": "st-022",
+  "bucket": "near",
+  "sim": 0.728,
+  "langPair": "en-en",
+  "from": "en-02#6",
+  "to": "en-05#1"
+ },
+ {
+  "id": "st-023",
+  "bucket": "planted",
+  "sim": 0.516,
+  "langPair": "de-en",
+  "from": "en-06#1",
+  "to": "de-06#2",
+  "plantHint": "contradicts",
+  "plantTopic": "noise is a problem vs noise belongs to a lab"
+ },
+ {
+  "id": "st-024",
+  "bucket": "mid",
+  "sim": 0.436,
+  "langPair": "de-en",
+  "from": "en-03#7",
+  "to": "de-06#7"
+ },
+ {
+  "id": "st-025",
+  "bucket": "far",
+  "sim": 0.282,
+  "langPair": "de-en",
+  "from": "en-04#4",
+  "to": "de-05#1"
+ },
+ {
+  "id": "st-026",
+  "bucket": "near",
+  "sim": 0.647,
+  "langPair": "en-en",
+  "from": "en-05#2",
+  "to": "en-03#2"
+ },
+ {
+  "id": "st-027",
+  "bucket": "mid",
+  "sim": 0.526,
+  "langPair": "en-en",
+  "from": "en-03#8",
+  "to": "en-04#2"
+ },
+ {
+  "id": "st-028",
+  "bucket": "near",
+  "sim": 0.66,
+  "langPair": "en-en",
+  "from": "en-01#4",
+  "to": "en-03#3"
+ },
+ {
+  "id": "st-029",
+  "bucket": "planted",
+  "sim": 0.316,
+  "langPair": "de-en",
+  "from": "en-01#7",
+  "to": "de-04#5",
+  "plantHint": "unrelated",
+  "plantTopic": "untidy workshop vs praise for people"
+ },
+ {
+  "id": "st-030",
+  "bucket": "mid",
+  "sim": 0.447,
+  "langPair": "en-en",
+  "from": "en-02#3",
+  "to": "en-01#2"
+ },
+ {
+  "id": "st-031",
+  "bucket": "near",
+  "sim": 0.767,
+  "langPair": "en-en",
+  "from": "en-01#0",
+  "to": "en-04#0"
+ },
+ {
+  "id": "st-032",
+  "bucket": "far",
+  "sim": 0.276,
+  "langPair": "de-en",
+  "from": "en-02#2",
+  "to": "de-01#3"
+ },
+ {
+  "id": "st-033",
+  "bucket": "mid",
+  "sim": 0.488,
+  "langPair": "de-en",
+  "from": "de-01#1",
+  "to": "en-01#3"
+ },
+ {
+  "id": "st-034",
+  "bucket": "mid",
+  "sim": 0.438,
+  "langPair": "en-en",
+  "from": "en-01#5",
+  "to": "en-06#1"
+ },
+ {
+  "id": "st-035",
+  "bucket": "planted",
+  "sim": 0.328,
+  "langPair": "de-en",
+  "from": "de-02#5",
+  "to": "en-04#5",
+  "plantHint": "elaborates",
+  "plantTopic": "weekly newsletter vs single place for everything"
+ },
+ {
+  "id": "st-036",
+  "bucket": "far",
+  "sim": 0.247,
+  "langPair": "de-en",
+  "from": "en-03#3",
+  "to": "de-03#6"
+ },
+ {
+  "id": "st-037",
+  "bucket": "mid",
+  "sim": 0.458,
+  "langPair": "en-en",
+  "from": "en-03#6",
+  "to": "en-05#4"
+ },
+ {
+  "id": "st-038",
+  "bucket": "planted",
+  "sim": 0.608,
+  "langPair": "en-en",
+  "from": "en-01#4",
+  "to": "en-05#6",
+  "plantHint": "contradicts",
+  "plantTopic": "hours inadequate vs hours fine (scope: weekend vs unspecified)"
+ },
+ {
+  "id": "st-039",
+  "bucket": "planted",
+  "sim": 0.757,
+  "langPair": "de-en",
+  "from": "en-03#0",
+  "to": "de-03#0",
+  "plantHint": "equivalent",
+  "plantTopic": "more structured regular workshops (cross-lingual)"
+ },
+ {
+  "id": "st-040",
+  "bucket": "near",
+  "sim": 0.624,
+  "langPair": "en-en",
+  "from": "en-05#3",
+  "to": "en-01#3"
+ },
+ {
+  "id": "st-041",
+  "bucket": "near",
+  "sim": 0.624,
+  "langPair": "de-en",
+  "from": "en-06#0",
+  "to": "de-05#1"
+ },
+ {
+  "id": "st-042",
+  "bucket": "planted",
+  "sim": 0.365,
+  "langPair": "de-de",
+  "from": "de-03#1",
+  "to": "de-06#0",
+  "plantHint": "contradicts",
+  "plantTopic": "more structure vs leave it as it is"
+ },
+ {
+  "id": "st-043",
+  "bucket": "planted",
+  "sim": 0.41,
+  "langPair": "de-en",
+  "from": "en-04#1",
+  "to": "de-01#1",
+  "plantHint": "contradicts",
+  "plantTopic": "same, cross-lingual"
+ },
+ {
+  "id": "st-044",
+  "bucket": "near",
+  "sim": 0.694,
+  "langPair": "de-en",
+  "from": "de-02#0",
+  "to": "en-02#6"
+ },
+ {
+  "id": "st-045",
+  "bucket": "planted",
+  "sim": 0.433,
+  "langPair": "de-en",
+  "from": "de-04#2",
+  "to": "en-02#0",
+  "plantHint": "contradicts",
+  "plantTopic": "first visit overwhelming vs onboarding was good"
+ },
+ {
+  "id": "st-046",
+  "bucket": "planted",
+  "sim": 0.456,
+  "langPair": "de-de",
+  "from": "de-05#0",
+  "to": "de-06#1",
+  "plantHint": "contradicts",
+  "plantTopic": "same, both German"
+ },
+ {
+  "id": "st-047",
+  "bucket": "planted",
+  "sim": 0.623,
+  "langPair": "en-en",
+  "from": "en-01#6",
+  "to": "en-04#6",
+  "plantHint": "supports",
+  "plantTopic": "lockers: second voice, thinner evidence"
+ },
+ {
+  "id": "st-048",
+  "bucket": "far",
+  "sim": 0.302,
+  "langPair": "de-de",
+  "from": "de-03#4",
+  "to": "de-04#5"
+ },
+ {
+  "id": "st-049",
+  "bucket": "far",
+  "sim": 0.157,
+  "langPair": "de-de",
+  "from": "de-01#2",
+  "to": "de-06#2"
+ },
+ {
+  "id": "st-050",
+  "bucket": "planted",
+  "sim": 0.618,
+  "langPair": "en-en",
+  "from": "en-01#0",
+  "to": "en-04#1",
+  "plantHint": "contradicts",
+  "plantTopic": "booking is a problem vs never had trouble (perspective-dependent: could be judged related)"
+ },
+ {
+  "id": "st-051",
+  "bucket": "mid",
+  "sim": 0.434,
+  "langPair": "de-en",
+  "from": "en-02#2",
+  "to": "de-02#3"
+ },
+ {
+  "id": "st-052",
+  "bucket": "planted",
+  "sim": 0.593,
+  "langPair": "de-en",
+  "from": "de-04#0",
+  "to": "en-04#7",
+  "plantHint": "equivalent",
+  "plantTopic": "keep things as they are / don't change too much (cross-lingual)"
+ },
+ {
+  "id": "st-053",
+  "bucket": "near",
+  "sim": 0.643,
+  "langPair": "en-en",
+  "from": "en-03#2",
+  "to": "en-05#3"
+ },
+ {
+  "id": "st-054",
+  "bucket": "mid",
+  "sim": 0.435,
+  "langPair": "de-de",
+  "from": "de-06#5",
+  "to": "de-04#7"
+ },
+ {
+  "id": "st-055",
+  "bucket": "mid",
+  "sim": 0.46,
+  "langPair": "de-en",
+  "from": "en-06#0",
+  "to": "de-03#7"
+ },
+ {
+  "id": "st-056",
+  "bucket": "planted",
+  "sim": 0.417,
+  "langPair": "de-en",
+  "from": "de-03#2",
+  "to": "en-05#4",
+  "plantHint": "unrelated",
+  "plantTopic": "visiting artists vs structured workshops (singleton)"
+ },
+ {
+  "id": "st-057",
+  "bucket": "planted",
+  "sim": 0.521,
+  "langPair": "en-en",
+  "from": "en-06#5",
+  "to": "en-03#4",
+  "plantHint": "insufficient_context",
+  "plantTopic": "'neither cheap nor expensive' vs 'too expensive'"
+ },
+ {
+  "id": "st-058",
+  "bucket": "near",
+  "sim": 0.709,
+  "langPair": "de-de",
+  "from": "de-06#0",
+  "to": "de-04#0"
+ },
+ {
+  "id": "st-059",
+  "bucket": "far",
+  "sim": 0.255,
+  "langPair": "de-en",
+  "from": "en-01#6",
+  "to": "de-05#4"
+ },
+ {
+  "id": "st-060",
+  "bucket": "planted",
+  "sim": 0.714,
+  "langPair": "en-en",
+  "from": "en-05#0",
+  "to": "en-04#7",
+  "plantHint": "supports",
+  "plantTopic": "keep as is vs don't over-organise"
+ }
+]
