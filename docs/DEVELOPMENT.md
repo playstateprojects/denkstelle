@@ -13,10 +13,11 @@ This is an independent SvelteKit app based on patterns proven in **Space Between
 - iPad-friendly camera/microphone preview, sound level meter, maximum 3-minute recording, replay and retry
 - Anonymous contributor receipt code, private R2 media upload, administrative playback
 - Generic `sources` + `source_segments` with modality-specific locators. PDFs/imported videos can be added later.
-- Worker-side database schema: orgs, projects, sources, permissions, segments, statements, evidence, themes, edges, highlights, jobs and reports
+- Worker-side database schema: orgs, projects, sources, permissions, segments, statements, evidence, themes, insights, highlights, jobs and reports
 - Standalone processing script: FFmpeg audio extraction, Cloudflare Whisper timestamped transcription, DeepSeek statement/summary/clip suggestion extraction, Cloudflare Qwen embeddings, PostgreSQL graph ingestion
 - Interactive 3D graph of co-occurring topics adapted from Space Between's `3d-force-graph`
 - FFmpeg CLI for captioned, portrait (9:16) highlight reels assembled from multiple approved source excerpts in private R2
+- Telephone simulator at `/phone` (signed-in admins) and a device API for a Raspberry Pi handset, see [DEVICE_API.md](DEVICE_API.md)
 - Recording deletion by private recovery code, including managed source media and derived highlights
 
 ## Deliberate limitations
@@ -92,6 +93,20 @@ Code: `worker/` (container: `src/queue.ts` SQL queue, `ingest.ts`, `render.ts`, 
 - Failed jobs: `select id, kind, attempts, error from processing_jobs where status = 'failed'`. To retry one: `update processing_jobs set status='queued', attempts=0, run_after=now() where id = '…'` (and set its source back to `uploaded` for an ingest job), then wait for the next sweep.
 - Cost: `standard-2` (1 vCPU, 6 GiB) bills memory while running and CPU only when active. A few minutes per interview sits well inside the Workers Paid included allowance. Check Billable Usage after the first week.
 
+## Sources, statements, themes, insights
+
+One chain, each step derived from the one before and linked back to it:
+
+1. **Source** → `source_segments` (timestamped transcript) → **statements**, each citing its segments in `statement_evidence` (`worker/src/analysis.ts`, prompt `analysis_system`).
+2. Statements → **themes** (`worker/src/themes.ts`, prompt `themes_system`): one call over all statements of the project, re-run after every finished recording. Membership is `statement_themes`.
+3. Theme → **insights** (`worker/src/insights.ts`, prompt `insights_system`): one call per theme over that theme's statements. Each insight cites the statements it rests on in `insight_evidence`; the code drops citations the model invented and insights left without evidence.
+
+So an insight resolves to a recording and a timestamp via `insight_evidence → statements → statement_evidence → source_segments → sources`.
+
+Themes and insights are re-derived, never edited. A theme keeps its insights while its basis (model, prompt version, statement set, stored in `themes.insight_basis`) is unchanged; a renamed or dropped theme takes its insights with it. `npm run themes:rebuild` repairs both, `-- --insights` forces every theme.
+
+Not built yet: contradictions (planned for the theme summary first) and edges between insights that cross themes. An earlier pairwise-relation experiment (classifier, Jev, eval harness and rubric) is kept in the local git tag `archive/pairwise-insight-experiment`; its data is still in `eval/`.
+
 ## Theme reels (experimental)
 
 `/dashboard/projects/<id>/reels` composes one highlight reel across **all** interviews instead of within one. Job kinds `compose_reel` and `render_reel`; code in `worker/src/reel.ts`; tables `reels` and `reel_clips` (`db/007_reels.sql`).
@@ -113,6 +128,15 @@ The plan is reviewable (drop clips, watch each original span) before rendering. 
 `source_segments`: text plus optional video `start_ms/end_ms`, PDF `page_number`, or text `char_start/char_end` locators. Every statement points via `statement_evidence` to one or more segments. Highlight generation only accepts video sources with concrete timestamps and suitable permissions. A future PDF importer can generate the exact same segments and graph relationships, but will never be miscounted as a human interview.
 
 An imported context document may influence analysis but **must never inflate participant counts or be presented as a participant's opinion**. Source role and project isolation are explicit in the schema.
+
+### Project context documents
+
+Uploaded on the project page (PDF, TXT or pasted text; `src/lib/server/context.ts`, `src/lib/context-text.ts`) as sources with `role='context'`, cut into passages in `source_segments` (PDF passages keep `page_number`). The `ingest_context` job (`worker/src/context.ts`, migration `db/012_context_jobs.sql`) then:
+
+1. **Embeds the passages.** `retrieveContext` finds the passages closest to an interview's transcript, and `analyze` receives them as BACKGROUND EXCERPTS, to understand what the speaker refers to. They are never a source of statements for that interview. Recordings analysed before a document is ready are not re-analysed automatically.
+2. **Optionally reads the text itself** (the "extract" checkbox) in windows of 24 passages with the `context_system` prompt (editable at `/admin/prompts`). Statements are stored with `source_id` of the context source, so they flow into themes and insights. The job is resumable (`analysis.cursor`, committed with each window, one continuation job at a time) because the queue reaps jobs running over 30 minutes. Roughly 45 model calls for a 1.3M-character book.
+
+Where context statements are kept apart from people: the theme and insight prompts tag interviews `I1..` and the text `T1..` with a note not to count the text as agreement; a theme's `sourceCount` (ranking, "N sources") counts interviews only; the dashboard marks theme counts and evidence "from the text". Reports (`ingest.ts`) still count only `role='contribution'`. To analyse participants alone, filter on `sources.role='contribution'` in the statement queries of `themes.ts` and `insights.ts`.
 
 ## Safety checklist before public pilot
 

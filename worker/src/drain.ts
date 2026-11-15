@@ -3,8 +3,9 @@ import {claimJob,runJob,type Handler,type JobKind} from './queue.ts';
 import {ingest} from './ingest.ts';
 import {render} from './render.ts';
 import {compose,renderReelJob} from './reel.ts';
+import {ingestContext} from './context.ts';
 
-export const handlers:Record<JobKind,Handler>={transcribe_and_ingest:ingest,render_highlight:render,compose_reel:compose,render_reel:renderReelJob};
+export const handlers:Record<JobKind,Handler>={transcribe_and_ingest:ingest,render_highlight:render,compose_reel:compose,render_reel:renderReelJob,ingest_context:ingestContext};
 export type DrainResult={processed:number;failed:number;retried:number;more:boolean};
 
 /** Work through due jobs one at a time. `more` means it stopped early (time budget or shutdown) with work possibly left. */

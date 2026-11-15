@@ -3,7 +3,7 @@
  */
 import type {Sql} from 'postgres';
 
-export type JobKind='transcribe_and_ingest'|'render_highlight'|'compose_reel'|'render_reel';
+export type JobKind='transcribe_and_ingest'|'render_highlight'|'compose_reel'|'render_reel'|'ingest_context';
 export type Job={id:string;source_id:string|null;kind:JobKind;highlight_id:string|null;reel_id:string|null;attempts:number;max_attempts:number};
 export type Handler=(sql:Sql,job:Job)=>Promise<void>;
 export type Outcome='complete'|'retry'|'failed';
@@ -44,8 +44,9 @@ export async function runJob(sql:Sql,job:Job,handlers:Record<JobKind,Handler>):P
 
 /** Keep sources/highlights consistent with the job after a failure or reap. */
 async function settleDerivedState(sql:Sql,job:Pick<Job,'kind'|'source_id'|'highlight_id'|'reel_id'>,jobStatus:'queued'|'failed',message?:string){
-  if(job.kind==='transcribe_and_ingest'&&job.source_id){
+  if((job.kind==='transcribe_and_ingest'||job.kind==='ingest_context')&&job.source_id){
     // The ingest handler sets the source to 'processing'; put it back so a retry can claim it, or mark it failed.
+    // (A context document keeps its progress in analysis.cursor, so its retry resumes where it stopped.)
     await sql`update sources set status=${jobStatus==='queued'?'uploaded':'failed'},updated_at=now() where id=${job.source_id} and status in ('processing','uploaded')`;
   }else if(job.kind==='compose_reel'||job.kind==='render_reel'){
     // A retry will redo the work; only a final failure marks the reel (the handler records its own message).

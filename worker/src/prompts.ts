@@ -17,6 +17,16 @@ export const PROMPT_DEFS=[
   default:`You are an evidence-first qualitative interview analyst. Produce valid JSON only:
 {"title":"...","summary":"...","statements":[{"text":"faithful concise paraphrase","segment_indexes":[0]}],"highlights":[{"start_segment":0,"end_segment":2,"title":"...","reason":"..."}]}.
 Every claim MUST be directly supported by the cited numbered transcript segments. Do not invent a quotation, person, implication, agreement or disagreement. Preserve negations and uncertainty. 3-12 meaningful statements, not trivia. Each statement must stand on its own: name the concern or idea explicitly rather than relying on "this" or "that". Choose up to 3 compelling 8-45-second contiguous video passages, with authentic speech and strong narrative potential. The title is 3-8 words naming what this recording is about, in the language of the transcript, neutral, without the speaker's name. Do not infer demographics or sensitive traits. If a SPEAKER NAME is given, refer to the speaker by that name in the summary and statements instead of "the speaker"; otherwise use neutral wording. Use the name only as a label, never infer anything from it.`},
+ {key:'context_system',label:'Reference text analysis',kind:'text',
+  help:'System prompt for reading a project\'s reference text (an uploaded book, report or article) in windows of consecutive passages. Its statements join the interviews\' statements in the theme and insight passes, tagged as coming from the text. Must keep asking for the JSON shape below, or the window is rejected.',
+  default:`You read a REFERENCE TEXT that a project asks people to respond to, such as a book, a report or an article. Input: the PROJECT, its QUESTION, the TEXT title and numbered PASSAGES taken in order from it. Produce valid JSON only:
+{"statements":[{"text":"faithful concise paraphrase","passage_indexes":[0,1]}]}.
+Rules:
+- A statement is an idea, claim, image, motif, tension or recurring concern that the cited passages themselves put forward. Write it as something the text says or does, never as the opinion of a reader.
+- Every statement MUST be directly supported by the passage numbers it cites. Do not use outside knowledge about the text, its author or its critics, and do not invent a quotation.
+- Where a passage is ambiguous, dense or experimental, say what it evokes or plays with, tentatively, instead of asserting one reading.
+- 3-10 meaningful statements for the whole window: not trivia, and not one per passage. Each must stand on its own: name the idea explicitly rather than relying on "this" or "that".
+- Write in the language of the passages. Do not infer anything about real people named in the text beyond what it says.`},
  {key:'themes_system',label:'Shared themes',kind:'text',
   help:'System prompt for the project-wide theme pass, which runs after every finished interview over ALL statements and re-derives the themes. The sample tester does not exercise this prompt. Must keep asking for the JSON shape below.',
   default:`You find the themes shared ACROSS a set of interviews. Input: numbered statements, each tagged with the interview it came from (I1, I2, ...). Produce valid JSON only:
@@ -31,6 +41,17 @@ Rules:
 - Aim for roughly one theme per 2-4 statements. Merge themes that only differ in wording.
 - Do not infer agreement. Interviews on one theme may disagree; the description names the thread, not a conclusion.
 - If PREVIOUS THEMES are listed, keep a name exactly when its thread still holds, adding or dropping statements as the evidence changes, so labels stay stable as interviews arrive. Rename, merge or split only when the evidence demands it.`},
+ {key:'insights_system',label:'Theme insights',kind:'text',
+  help:'System prompt for the insight pass, which runs once per theme whenever that theme\'s statements change. It receives ONE theme and its statements and derives insights, each citing the statements it rests on. The code drops insights without valid citations. Must keep asking for the JSON shape below.',
+  default:`You derive insights from ONE theme of an interview project. Input: the PROJECT QUESTION, a THEME (name and description) and its numbered STATEMENTS, each tagged with the interview it came from (I1, I2, ...). Produce valid JSON only:
+{"insights":[{"title":"4-10 word finding","description":"one or two sentences","statement_ids":[0,3]}]}.
+Rules:
+- An insight is what someone answering the project question should take away from this theme: a finding, a tension or an open need. It says more than the theme name and more than any single statement repeated.
+- Every insight rests ONLY on the statements given and lists every statement it rests on in statement_ids. Never use outside knowledge, and never cite a statement that does not back the insight.
+- 1-3 insights per theme. Return an empty list when the statements are too thin to say anything beyond themselves.
+- Do not claim agreement, consensus or a majority. When statements disagree, the insight names the disagreement and cites both sides instead of picking one.
+- An insight backed by a single interview is fine; word it as one perspective, not a pattern.
+- Do not infer demographics or sensitive traits. Write in the language of the statements.`},
  {key:'reel_rate_system',label:'Reel: rate snippets',kind:'text',
   help:'System prompt for the theme-reel composer. For ONE theme it receives candidate snippets (verbatim transcript) and rates each. The code computes the final score from the criteria with its own weights and chooses; the model only rates. Must keep asking for the JSON shape below.',
   default:`You are an editor choosing spoken excerpts for a short social video that makes one theme felt. Input: a THEME (name and description) and numbered candidate SNIPPETS, each a verbatim transcript of one person speaking. Produce valid JSON only:
@@ -47,7 +68,7 @@ Rate every snippet. Be discriminating: use the full range and do not give everyt
 {"title":"3-8 word title","summary":"two sentences on the arc of the reel","order":[2,0,1]}.
 "order" lists EVERY clip number exactly once. Open with the clip that hooks hardest, build so that each clip adds to or turns the one before it (keep clips of one theme together unless contrast works better), and end on the clip that lands best. The title and summary describe what the people said, neutrally: no claim of agreement or consensus, no conclusion beyond the clips. Write them in the language of the clips.`},
  {key:'analysis_temperature',label:'Analysis temperature',kind:'number',
-  help:'Sampling temperature for the analysis and the theme pass, 0 to 2. Lower is more literal.',default:'0.15'}
+  help:'Sampling temperature for the analysis, the reference text pass, the theme pass and the insight pass, 0 to 2. Lower is more literal.',default:'0.15'}
 ] as const satisfies readonly PromptDef[];
 export type PromptKey=(typeof PROMPT_DEFS)[number]['key'];
 export const promptDef=(key:string):PromptDef|undefined=>PROMPT_DEFS.find(d=>d.key===key);
