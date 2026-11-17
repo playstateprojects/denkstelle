@@ -7,7 +7,7 @@ import {join,extname} from 'node:path';
 import type {Sql} from 'postgres';
 import {downloadObject,tempWorkspace,ffmpeg,cloudflareAI,embeddings,vector} from './utils.ts';
 import {analyze} from './analysis.ts';
-import {rebuildThemes} from './themes.ts';
+import {assignThemes} from './theme-match.ts';
 import {rebuildInsights} from './insights.ts';
 import {retrieveContext} from './context.ts';
 import {getActiveModel,loadPrompts} from './prompts.ts';
@@ -88,14 +88,16 @@ export async function ingest(sql:Sql,job:Job):Promise<void>{
    }
    const newTitle=extracted.title.trim().slice(0,120);
    await sql`update sources set status='ready',title=coalesce(nullif(${newTitle},''),title),analysis=${sql.json({title:newTitle,summary:extracted.summary,statements:cleaned.length,segments:segments.length,contextPassages:background.length,model:modelId,promptVersions:prompts.versions})},processing_model=${'whisper-large-v3-turbo + '+modelId},updated_at=now() where id=${job.source_id}`;
-   // Themes are shared threads across ALL interviews, so they are re-derived now that this one is ready.
-   // A failure here must not fail the job: a retry would redo the whole transcription. `npm run themes:rebuild` repairs it.
+   // Themes are shared threads across ALL interviews: each new statement is placed in an existing theme by Jev, or starts one.
+   // A failure here must not fail the job: a retry would redo the whole transcription. Unplaced statements are picked up by the
+   // next run, or by `npm run themes:assign -- <projectId>`.
    // Insights are derived from each theme's statements, so they follow the themes; only themes whose statements changed are redone.
    try{
-     await rebuildThemes(sql,process.env,modelId,prompts,source.project_id);
+     const t=await assignThemes(sql,process.env,modelId,prompts,source.project_id);
+     for(const f of t.failed)console.error(`Statement ${f.statement} not placed in a theme; \`npm run themes:assign\` retries:`,f.error);
      const r=await rebuildInsights(sql,process.env,modelId,prompts,source.project_id);
-     for(const f of r.failed)console.error(`Insights for theme "${f.theme}" failed; \`npm run themes:rebuild\` retries:`,f.error);
-   }catch(e){console.error('Theme synthesis failed; interview is ready, run `npm run themes:rebuild`:',e instanceof Error?e.message:e)}
+     for(const f of r.failed)console.error(`Insights for theme "${f.theme}" failed; \`npm run themes:assign -- <projectId> --insights\` retries:`,f.error);
+   }catch(e){console.error('Theme assignment failed; interview is ready, run `npm run themes:assign`:',e instanceof Error?e.message:e)}
    // Deterministic aggregates, never fabricate agreement/contestation from raw counts.
    const counts=await sql<{name:string;mentions:number}[]>`select t.name,count(distinct st.source_id)::int as mentions from themes t join statement_themes x on x.theme_id=t.id join statements st on st.id=x.statement_id where t.project_id=${source.project_id} group by t.id order by mentions desc limit 20`;
    const total=await sql<{n:number}[]>`select count(*)::int as n from sources where project_id=${source.project_id} and status='ready' and role='contribution'`;

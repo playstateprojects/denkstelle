@@ -12,7 +12,7 @@ import {z} from 'zod';
 import type {Sql} from 'postgres';
 import {modelDef,llmComplete,parseJson,LlmError,type Env} from './models.ts';
 import {embeddings,vector} from './utils.ts';
-import {rebuildThemes} from './themes.ts';
+import {assignThemes} from './theme-match.ts';
 import {rebuildInsights} from './insights.ts';
 import {getActiveModel,loadPrompts,type Prompts} from './prompts.ts';
 import {PermanentError,type Job} from './queue.ts';
@@ -111,15 +111,16 @@ export async function ingestContext(sql:Sql,job:Job):Promise<void>{
 
  state.done=true;
  await sql`update sources set status='ready',analysis=${sql.json(state)},updated_at=now() where id=${src.id}`;
- // Like an interview, a finished document re-derives the project's themes and insights. A failure here must not fail the job:
- // a retry would redo nothing useful, and `npm run themes:rebuild` repairs it.
+ // Like an interview, a finished document has its statements placed in themes and the touched themes' insights re-derived.
+ // A failure here must not fail the job: a retry would redo nothing useful, and `npm run themes:assign` repairs it.
  if(state.statements){
   try{
    const modelId=await getActiveModel(sql);const prompts=await loadPrompts(sql,modelId);
-   await rebuildThemes(sql,process.env,modelId,prompts,src.project_id);
+   const t=await assignThemes(sql,process.env,modelId,prompts,src.project_id);
+   for(const f of t.failed)console.error(`Statement ${f.statement} not placed in a theme; \`npm run themes:assign\` retries:`,f.error);
    const r=await rebuildInsights(sql,process.env,modelId,prompts,src.project_id);
-   for(const f of r.failed)console.error(`Insights for theme "${f.theme}" failed; \`npm run themes:rebuild\` retries:`,f.error);
-  }catch(e){console.error('Theme synthesis failed; the document is ready, run `npm run themes:rebuild`:',e instanceof Error?e.message:e)}
+   for(const f of r.failed)console.error(`Insights for theme "${f.theme}" failed; \`npm run themes:assign -- <projectId> --insights\` retries:`,f.error);
+  }catch(e){console.error('Theme assignment failed; the document is ready, run `npm run themes:assign`:',e instanceof Error?e.message:e)}
  }
  console.log('Context ready',src.id,state.chunks,'passages',state.statements??0,'statements');
 }

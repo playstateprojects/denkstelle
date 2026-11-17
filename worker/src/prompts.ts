@@ -58,6 +58,28 @@ Rules:
 - When an insight draws on reference texts, say which text holds which position, by title, so a reader can tell whose claim is whose.
 - Statement numbers and source tags go ONLY in statement_ids. The title and description are read without the statement list, so never write "statement 2", "(0)" or "I1" in them; say what the statement says instead.
 - Do not infer demographics or sensitive traits. Write in the language of the statements.`},
+ {key:'theme_name_system',label:'New theme',kind:'text',
+  help:'System prompt for naming a NEW theme. It runs when Jev judged that a statement belongs to none of the existing themes: the statement starts a theme and the model names it. It receives only the statement and the nearby themes it was judged not to belong to; the project question is deliberately not given, so themes describe what statements are about, not how they answer the question. Must keep asking for the JSON shape below. Whether a statement belongs to a theme is decided by Jev and the thresholds in worker/src/theme-match.ts, not by this prompt.',
+  default:`You name a NEW theme. A statement did not belong to any existing theme, so it starts one. Input: the STATEMENT and the NEARBY THEMES it was judged not to belong to. Produce valid JSON only:
+{"name":"2-6 word label","description":"one neutral sentence describing the theme"}.
+Rules:
+- Ask what broad theme this statement represents: the subject it is about, at the level where other statements about the same subject would share it. Name that subject, not the statement. Statements that take either side of it, give an example of it or give a reason about it should fit under the name: a statement and its opposite share one theme.
+- Broad enough to gather further statements, specific enough to be informative ("Artists not compensated", "Whether words fit things"). Never generic ("Language", "Concerns", "Risks"), and never named after the organisation, the interview or the act of giving feedback ("Suggestions", "Improvements", "Opinions"): name what the statement is about.
+- The theme must differ from every NEARBY THEME in what it is about, not just in wording.
+- The description names the subject in one neutral sentence. Do not say who is right, do not infer agreement, and do not copy the statement.
+- When the statement comes from the project's reference text, say "the text" if you refer to it, never "people".
+- Write in the language of the statement. Never mention statement numbers or source tags.`},
+ {key:'theme_rewrite_system',label:'Rewrite theme',kind:'text',
+  help:'System prompt for rewriting a theme\'s name and description. It runs each time a theme has grown by 5 statements, so the wording follows what the theme has become instead of the one statement that started it. It receives the current name and description and the theme\'s statements (an even spread when there are many); the project question is deliberately not given. Must keep asking for the JSON shape below. Which statements belong to a theme is decided by Jev, not by this prompt.',
+  default:`You rewrite the name and description of ONE theme. The theme has grown: more statements now belong to it than when it was named. Input: the CURRENT THEME (name and description) and numbered STATEMENTS that belong to it. Produce valid JSON only:
+{"name":"2-6 word label","description":"one neutral sentence describing the theme"}.
+Rules:
+- Keep the current name and description EXACTLY when they still describe everything the statements speak to. Stable labels matter: change them only because the statements show the old wording is too narrow, too broad or off.
+- The theme is one broad subject. Name and describe the subject all the statements speak to, including those that take the opposite side, give an example or give a reason. Do not narrow it to the newest statements or to the most common view.
+- Names are specific and informative ("Artists not compensated", "Whether words fit things"). Never generic ("Language", "Concerns", "Risks"), and never named after the organisation, the interview or the act of giving feedback ("Suggestions", "Improvements", "Opinions").
+- The description is one neutral sentence. Where the statements pull in different directions, say that they do, without saying who is right. Do not infer agreement or a majority.
+- Statements marked (text) come from the project's reference text, not from interviewees: say "the text" if you refer to them, never "people".
+- Write in the language most statements use. Never mention statement numbers or source tags.`},
  {key:'reel_rate_system',label:'Reel: rate snippets',kind:'text',
   help:'System prompt for the theme-reel composer. For ONE theme it receives candidate snippets (verbatim transcript) and rates each. The code computes the final score from the criteria with its own weights and chooses; the model only rates. Must keep asking for the JSON shape below.',
   default:`You are an editor choosing spoken excerpts for a short social video that makes one theme felt. Input: a THEME (name and description) and numbered candidate SNIPPETS, each a verbatim transcript of one person speaking. Produce valid JSON only:

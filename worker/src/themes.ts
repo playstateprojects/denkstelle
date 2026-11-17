@@ -90,6 +90,8 @@ export async function rebuildThemes(sql:Sql,env:Env,modelId:string,prompts:Promp
    for(const sid of t.statementIds)await tx`insert into statement_themes(statement_id,theme_id) values(${sid},${row.id}) on conflict do nothing`;
   }
   await tx`delete from themes t where t.project_id=${projectId} and not exists (select 1 from statement_themes st where st.theme_id=t.id)`;
+  // Keep the per-statement placement state (db/013) in step with what this pass wrote: unthemed statements are looked at again by themes:assign.
+  await tx`update statements s set theme_status=case when exists (select 1 from statement_themes x where x.statement_id=s.id) then 'assigned' end where s.project_id=${projectId}`;
  });
  return result;
 }

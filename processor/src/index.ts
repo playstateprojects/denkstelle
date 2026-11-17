@@ -22,6 +22,7 @@ interface Env {
   R2_BUCKET: string;
   WORKERS_AI_API_TOKEN: string;
   DEEPSEEK_API_KEY: string;
+  TYPESAFE_API_KEY: string;
 }
 type WakeMessage = {kind: 'upload' | 'approve' | 'retry' | 'sweep' | 'more'};
 type DrainResult = {processed: number; failed: number; retried: number; more: boolean};
@@ -43,6 +44,7 @@ export class Processor extends Container<Env> {
       R2_BUCKET: env.R2_BUCKET,
       WORKERS_AI_API_TOKEN: env.WORKERS_AI_API_TOKEN,
       DEEPSEEK_API_KEY: env.DEEPSEEK_API_KEY,
+      TYPESAFE_API_KEY: env.TYPESAFE_API_KEY,
     };
   }
 

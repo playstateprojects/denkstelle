@@ -43,5 +43,5 @@
 
 	"vars": { "R2_BUCKET": "denkstelle-private" }
 	// Secrets (not in this file): DATABASE_URL, R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY,
-	// WORKERS_AI_API_TOKEN, DEEPSEEK_API_KEY. See processor/secrets.example.
+	// WORKERS_AI_API_TOKEN, DEEPSEEK_API_KEY, TYPESAFE_API_KEY. See processor/secrets.example.
 }
