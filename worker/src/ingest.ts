@@ -7,7 +7,7 @@ import {join,extname} from 'node:path';
 import type {Sql} from 'postgres';
 import {downloadObject,tempWorkspace,ffmpeg,cloudflareAI,embeddings,vector} from './utils.ts';
 import {analyze} from './analysis.ts';
-import {assignThemes} from './theme-match.ts';
+import {assignTopics} from './topic-match.ts';
 import {rebuildInsights} from './insights.ts';
 import {retrieveContext} from './context.ts';
 import {getActiveModel,loadPrompts} from './prompts.ts';
@@ -88,12 +88,12 @@ export async function ingest(sql:Sql,job:Job):Promise<void>{
    }
    const newTitle=extracted.title.trim().slice(0,120);
    await sql`update sources set status='ready',title=coalesce(nullif(${newTitle},''),title),analysis=${sql.json({title:newTitle,summary:extracted.summary,statements:cleaned.length,segments:segments.length,contextPassages:background.length,model:modelId,promptVersions:prompts.versions})},processing_model=${'whisper-large-v3-turbo + '+modelId},updated_at=now() where id=${job.source_id}`;
-   // Themes are shared threads across ALL interviews: each new statement is placed in an existing theme by Jev, or starts one.
+   // Themes are shared threads across ALL interviews: each new statement gets 1 to 3 topics, each matched to an existing theme (Jev scores the match) or starting one (worker/src/topic-match.ts).
    // A failure here must not fail the job: a retry would redo the whole transcription. Unplaced statements are picked up by the
    // next run, or by `npm run themes:assign -- <projectId>`.
    // Insights are derived from each theme's statements, so they follow the themes; only themes whose statements changed are redone.
    try{
-     const t=await assignThemes(sql,process.env,modelId,prompts,source.project_id);
+     const t=await assignTopics(sql,process.env,modelId,prompts,source.project_id);
      for(const f of t.failed)console.error(`Statement ${f.statement} not placed in a theme; \`npm run themes:assign\` retries:`,f.error);
      const r=await rebuildInsights(sql,process.env,modelId,prompts,source.project_id);
      for(const f of r.failed)console.error(`Insights for theme "${f.theme}" failed; \`npm run themes:assign -- <projectId> --insights\` retries:`,f.error);

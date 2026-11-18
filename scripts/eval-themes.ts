@@ -1,5 +1,5 @@
 /** Run theme placement over a frozen statement set, in memory, several times in different orders.
- *   npm run eval:themes -- [--set eval/statements/q1-better/deepseek-flash] [--runs 3] [--seed 1] [--member 0.6] [--settle 0.5] [--no-rewrite] [--no-settle]
+ *   npm run eval:themes -- [--set eval/statements/q1-better/deepseek-flash] [--runs 3] [--seed 1] [--member 0.6] [--settle 0.5] [--no-rewrite] [--no-settle] [--no-merge]
  * Reads <set>.jsonl (one statement per line, field `text`) and <set>.emb.json (a vector per line, same order).
  * Calls Jev and the chat model for real, so it needs TYPESAFE_API_KEY and a chat model key; it writes nothing to a database.
  * Run 0 is the original order, the rest are shuffled: how much the themes move between runs is the order sensitivity.
@@ -10,6 +10,7 @@ import {DEFAULT_MODEL} from '../worker/src/models.ts';
 import {DEFAULT_PROMPTS} from '../worker/src/prompts.ts';
 import {placeAll,jevJudge,modelNamer,modelRewriter,THEME_JEV_VERSION,THRESHOLDS,REWRITE_EVERY,type Judge} from '../worker/src/theme-match.ts';
 import {MemoryStore} from '../worker/src/theme-memory.ts';
+import {mergeThemes,jevMergeJudge} from '../worker/src/theme-merge.ts';
 
 const arg=(n:string)=>{const i=process.argv.indexOf(`--${n}`);return i>=0?process.argv[i+1]:undefined};
 const set=arg('set')??'eval/statements/q1-better/deepseek-flash',runs=Number(arg('runs')??3),seed=Number(arg('seed')??1);
@@ -26,7 +27,7 @@ const shuffled=<T>(a:T[],r:()=>number)=>{const b=[...a];for(let i=b.length-1;i>0
 const judge:Judge=jevJudge(process.env),name=modelNamer(process.env,DEFAULT_MODEL,DEFAULT_PROMPTS);
 // --no-rewrite turns off the rewrite-every-${REWRITE_EVERY} step, to see what it changes.
 const rewrite=process.argv.includes('--no-rewrite')?undefined:modelRewriter(process.env,DEFAULT_MODEL,DEFAULT_PROMPTS);
-type Run={decisions:{id:string;pass:number;kind:string;judged:{themeId:string;p:number}[]}[];themeNames:Record<string,string>;order:string[];themes:{name:string;statements:string[]}[];pending:string[];jevCalls:number;renames:{from:string;to:string;size:number}[]};
+type Run={decisions:{id:string;pass:number;kind:string;judged:{themeId:string;p:number}[]}[];themeNames:Record<string,string>;order:string[];themes:{name:string;statements:string[]}[];pending:string[];jevCalls:number;merges:{absorbed:string;into:string;p:number}[];renames:{from:string;to:string;size:number}[]};
 const results:Run[]=[],settled:number[]=[];
 for(let r=0;r<runs;r++){
  const order=r===0?statements.map(s=>s.id):shuffled(statements.map(s=>s.id),rng(seed+r));
@@ -35,9 +36,10 @@ for(let r=0;r<runs;r++){
  const decisions:Run['decisions']=[];
  const run=await placeAll(deps,order.map(id=>statements.find(s=>s.id===id)!),{settle:!process.argv.includes('--no-settle'),onPlaced:(st,placed,pass)=>{decisions.push({id:st.id,pass,kind:placed.placement.kind,judged:placed.judged})}});
  settled.push(run.settled.length);
+ const merged=process.argv.includes('--no-merge')?[]:(await mergeThemes({store,judge:jevMergeJudge(process.env),rewrite})).merged;
  const members=store.members();
- results.push({decisions,themeNames:Object.fromEntries([...store.themes.values()].map(t=>[t.id,t.name])),order,themes:[...store.themes.values()].map(t=>({name:t.name,statements:members.get(t.id)??[]})),pending:[...store.status].filter(([,v])=>v==='pending').map(([k])=>k),jevCalls:calls,renames:store.renames.map(({from,to,size})=>({from,to,size}))});
- console.log(`run ${r}: ${results[r].themes.length} themes, ${results[r].themes.filter(t=>t.statements.length===1).length} single-statement, ${results[r].pending.length} pending, ${settled[r]} settled in pass 2, ${results[r].renames.length} rewrites, ${calls} Jev calls`);
+ results.push({decisions,themeNames:Object.fromEntries([...store.themes.values()].map(t=>[t.id,t.name])),order,themes:[...store.themes.values()].map(t=>({name:t.name,statements:members.get(t.id)??[]})),pending:[...store.status].filter(([,v])=>v==='pending').map(([k])=>k),jevCalls:calls,merges:merged.map(m=>({absorbed:m.absorbed,into:m.survivor,p:m.p})),renames:store.renames.map(({from,to,size})=>({from,to,size}))});
+ console.log(`run ${r}: ${results[r].themes.length} themes, ${results[r].themes.filter(t=>t.statements.length===1).length} single-statement, ${results[r].pending.length} pending, ${settled[r]} settled in pass 2, ${results[r].renames.length} rewrites, ${results[r].merges.length} merged, ${calls} Jev calls`);
 }
 
 const pairs=(run:Run)=>{const out=new Set<string>();for(const t of run.themes)for(const a of t.statements)for(const b of t.statements)if(a<b)out.add(`${a}|${b}`);return out};

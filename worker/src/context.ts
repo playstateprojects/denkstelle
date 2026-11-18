@@ -12,7 +12,7 @@ import {z} from 'zod';
 import type {Sql} from 'postgres';
 import {modelDef,llmComplete,parseJson,LlmError,type Env} from './models.ts';
 import {embeddings,vector} from './utils.ts';
-import {assignThemes} from './theme-match.ts';
+import {assignTopics} from './topic-match.ts';
 import {rebuildInsights} from './insights.ts';
 import {getActiveModel,loadPrompts,type Prompts} from './prompts.ts';
 import {PermanentError,type Job} from './queue.ts';
@@ -116,7 +116,7 @@ export async function ingestContext(sql:Sql,job:Job):Promise<void>{
  if(state.statements){
   try{
    const modelId=await getActiveModel(sql);const prompts=await loadPrompts(sql,modelId);
-   const t=await assignThemes(sql,process.env,modelId,prompts,src.project_id);
+   const t=await assignTopics(sql,process.env,modelId,prompts,src.project_id);
    for(const f of t.failed)console.error(`Statement ${f.statement} not placed in a theme; \`npm run themes:assign\` retries:`,f.error);
    const r=await rebuildInsights(sql,process.env,modelId,prompts,src.project_id);
    for(const f of r.failed)console.error(`Insights for theme "${f.theme}" failed; \`npm run themes:assign -- <projectId> --insights\` retries:`,f.error);

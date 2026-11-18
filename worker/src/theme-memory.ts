@@ -1,6 +1,6 @@
 /** ThemeStore in memory: the same placement logic as the pipeline with no database. Used by the tests and `npm run eval:themes`. */
 import {canonical} from './themes.ts';
-import {NEAREST_STATEMENTS,EXAMPLES_PER_THEME,spread,type ThemeStore,type Candidate,type Judgement,type LinkMethod,type NewTheme} from './theme-match.ts';
+import {NEAREST_STATEMENTS,EXAMPLES_PER_THEME,spread,type ThemeStore,type Candidate,type Judgement,type LinkMethod,type NewTheme,type ThemeOverlap} from './theme-match.ts';
 
 export type MemoryStatement={id:string;text:string;vec:number[]};
 const cos=(a:number[],b:number[])=>{let d=0,x=0,y=0;for(let i=0;i<a.length;i++){d+=a[i]*b[i];x+=a[i]*a[i];y+=b[i]*b[i]}return d/(Math.sqrt(x*y)||1)};
@@ -9,6 +9,8 @@ export class MemoryStore implements ThemeStore{
  readonly themes=new Map<string,{id:string;name:string;description:string;namedSize:number}>();
  /** Every rewrite that changed a theme, oldest first. */
  readonly renames:{themeId:string;from:string;to:string;size:number}[]=[];
+ /** Every merge, oldest first. */
+ readonly merges:{survivorId:string;absorbedId:string;absorbed:string;overlap:number;probability:number}[]=[];
  /** statement id -> theme id -> how it got there */
  readonly links=new Map<string,Map<string,{p:number|null;method:LinkMethod}>>();
  readonly status=new Map<string,'assigned'|'pending'>();
@@ -58,6 +60,26 @@ export class MemoryStore implements ThemeStore{
   this.renames.push({themeId,from:t.name,to:next.name,size});
   t.name=next.name;t.description=next.description;
   return {renamed:true};
+ }
+ async overlaps():Promise<ThemeOverlap[]>{
+  const m=this.members(),ids=[...m.keys()].sort(),out:ThemeOverlap[]=[];
+  for(let i=0;i<ids.length;i++)for(let j=i+1;j<ids.length;j++){
+   const a=new Set(m.get(ids[i])),both=m.get(ids[j])!.filter(x=>a.has(x)).length;
+   if(both)out.push({a:ids[i],b:ids[j],aSize:m.get(ids[i])!.length,bSize:m.get(ids[j])!.length,both});
+  }
+  return out;
+ }
+ async merge(survivorId:string,absorbedId:string,x:{probability:number;overlap:number;by:string}){
+  const gone=this.themes.get(absorbedId);
+  if(!this.themes.has(survivorId)||!gone)throw new Error(`Cannot merge ${absorbedId} into ${survivorId}`);
+  for(const m of this.links.values()){
+   const l=m.get(absorbedId);if(!l)continue;
+   const have=m.get(survivorId);
+   if(!have)m.set(survivorId,l);else if(l.p!=null&&(have.p==null||l.p>have.p))have.p=l.p;
+   m.delete(absorbedId);
+  }
+  this.merges.push({survivorId,absorbedId,absorbed:gone.name,overlap:x.overlap,probability:x.probability});
+  this.themes.delete(absorbedId);
  }
  /** theme id -> statement ids */
  members():Map<string,string[]>{

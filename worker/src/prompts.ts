@@ -80,6 +80,18 @@ Rules:
 - The description is one neutral sentence. Where the statements pull in different directions, say that they do, without saying who is right. Do not infer agreement or a majority.
 - Statements marked (text) come from the project's reference text, not from interviewees: say "the text" if you refer to them, never "people".
 - Write in the language most statements use. Never mention statement numbers or source tags.`},
+ {key:'topic_extract_system',label:'Topics of a statement',kind:'text',
+  help:'System prompt for listing the topics of ONE statement (worker/src/topic-match.ts). It receives the statement and the names of themes already in use near it, and returns 1 to 3 atomic topics, each with a name and a description. Each topic is then matched to the themes (exact name, then embedding), Jev scores the statement against every candidate, and a topic nothing matches becomes a new theme named exactly as returned here. Names and descriptions are English whatever the statement\'s language. The project question is deliberately not given. Must keep asking for the JSON shape below. A name made only of words like "ideas" or "feedback" is dropped by code.',
+  default:`You list the topics a statement is about. Input: the STATEMENT and EXISTING THEMES (names already in use). Produce valid JSON only:
+{"topics":[{"name":"1-4 word label","description":"one neutral sentence saying what the topic covers"}]}
+Rules:
+- 1 to 3 topics. Most statements have one or two; give three only when the statement really speaks to three separate subjects.
+- Each topic is ONE subject: a short noun phrase such as "laser cutter lab" or "price". Never join two subjects into one label ("laser lab price" is wrong: that is "laser cutter lab" and "price").
+- Name the subject, not the stance: a statement and its opposite share a topic ("price" covers "too expensive" and "fair price").
+- Name the thing the statement is about, never the kind of speech act. A suggestion, a complaint, an idea or a wish is about something: name that something. Never "improvements", "ideas", "criticism", "feedback", "opinions", "concerns", "next steps".
+- Write every name and description in English, whatever language the statement is in.
+- If an EXISTING THEME already covers a subject of the statement, use its exact name. Only invent a new name when none fits.
+- The description names the subject in one neutral sentence; do not say who is right and do not copy the statement.`},
  {key:'reel_rate_system',label:'Reel: rate snippets',kind:'text',
   help:'System prompt for the theme-reel composer. For ONE theme it receives candidate snippets (verbatim transcript) and rates each. The code computes the final score from the criteria with its own weights and chooses; the model only rates. Must keep asking for the JSON shape below.',
   default:`You are an editor choosing spoken excerpts for a short social video that makes one theme felt. Input: a THEME (name and description) and numbered candidate SNIPPETS, each a verbatim transcript of one person speaking. Produce valid JSON only:
