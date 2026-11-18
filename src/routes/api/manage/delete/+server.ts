@@ -23,8 +23,10 @@ export const POST:RequestHandler=async({request,platform})=>{
     for(const r of reels)if(r.media_key)await bucket.delete(r.media_key);
     if(reels.length)await sql`update reels set media_key=null,status=case when status in ('rendered','rendering') then 'composed' else status end where id in ${sql(reels.map(r=>r.id))}`;
     await sql`delete from sources where id=${id}`;
-    // Remove derived project reports and themes with no surviving source evidence.
+    // Remove derived project reports, plus insights and themes with no surviving source evidence.
+    // Insights that lost only part of their evidence are re-derived on the next theme rebuild (their theme's statements changed).
     await sql`delete from project_reports where project_id=${s.project_id}`;
+    await sql`delete from insights i where i.project_id=${s.project_id} and not exists (select 1 from insight_evidence e where e.insight_id=i.id)`;
     await sql`delete from themes t where t.project_id=${s.project_id} and not exists (select 1 from statement_themes st where st.theme_id=t.id)`;
     return json({ok:true});
   } catch(e){console.error('[delete]',e);return json({error:'Deletion could not complete; contact the project administrator'},{status:500});}

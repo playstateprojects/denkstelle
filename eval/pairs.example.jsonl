@@ -1,0 +1,9 @@
+// FORMAT EXAMPLE ONLY. These pairs are made up and too easy to say anything about your data.
+// Copy to eval/pairs.jsonl and replace with ~30 real pairs from your own projects (consented or openly licensed data).
+// Label before looking at any model output. Include hard negatives: same topic but different claim, negations, different scope, and pairs a person would call "can't tell".
+{"id":"ex-equiv","from":"I stopped using the app because the notifications were overwhelming.","to":"Too many notifications made me quit the app.","gold":"equivalent"}
+{"id":"ex-contra","from":"The onboarding was easy to follow.","to":"I found the onboarding confusing from the first screen.","gold":"contradicts"}
+{"id":"ex-scope","from":"Our team loves the weekly planning meeting.","to":"Nobody in the company enjoys meetings.","gold":"insufficient_context","note":"scope differs: one team vs the whole company; hard case"}
+{"id":"ex-elab","from":"Notifications were overwhelming, especially the ones sent after 10pm.","to":"Notifications were overwhelming.","gold":"elaborates"}
+{"id":"ex-related","from":"Pricing felt fair for what we got.","to":"I wish the app had a dark mode.","gold":"unrelated"}
+{"id":"ex-hard-neg","from":"I use the app every morning to plan my day.","to":"I use the app every evening to review my day.","gold":"related","note":"same behaviour, different claim: must not be equivalent"}

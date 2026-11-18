@@ -2,9 +2,9 @@ import {json,type RequestHandler} from '@sveltejs/kit';
 import {z} from 'zod';
 import {connect} from '$lib/server/db';
 import {generateReceiptCode,sha256} from '$lib/server/receipt';
+import {CONSENT_POLICY_VERSION as POLICY} from '$lib/server/media';
 const input=z.object({mode:z.enum(['video','audio']).default('video'),slug:z.string().min(3).max(90),contributorLabel:z.string().max(100).optional(),email:z.email().optional(),
   consents:z.object({capture_analysis:z.literal(true),public_excerpt:z.boolean(),social_media:z.boolean(),email_receipt:z.boolean()})});
-const POLICY='draft-2026-11-05';
 export const POST:RequestHandler=async({request,platform})=>{
   const parsed=input.safeParse(await request.json().catch(()=>null));
   if(!parsed.success)return json({error:'Invalid consent form'},{status:400});

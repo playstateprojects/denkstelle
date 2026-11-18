@@ -25,8 +25,8 @@ export const load:PageServerLoad=async({params,locals,url,platform})=>{
     const reels=await sql<{id:string;title:string;status:string;params:Record<string,unknown>;summary:string|null;trace:unknown;error:string|null;created_at:string}[]>`
       select id,title,status,params,summary,trace,error,created_at::text as created_at from reels where project_id=${params.id} order by created_at desc limit 20`;
     const ids=reels.map(r=>r.id);
-    const clips=ids.length?await sql<{id:string;reel_id:string;position:number;source_id:string;theme_name:string;start_ms:number;end_ms:number;text:string;score:number;ratings:Record<string,number>;rationale:string|null;included:boolean;speaker:string|null}[]>`
-      select c.id,c.reel_id,c.position,c.source_id,c.theme_name,c.start_ms,c.end_ms,c.text,c.score::float8 as score,c.ratings,c.rationale,c.included,s.contributor_label as speaker
+    const clips=ids.length?await sql<{id:string;reel_id:string;position:number;source_id:string;theme_name:string;start_ms:number;end_ms:number;text:string;score:number;ratings:Record<string,number>;rationale:string|null;included:boolean;speaker:string|null;audio:boolean}[]>`
+      select c.id,c.reel_id,c.position,c.source_id,c.theme_name,c.start_ms,c.end_ms,c.text,c.score::float8 as score,c.ratings,c.rationale,c.included,s.contributor_label as speaker,(s.kind='audio' or coalesce(s.mime_type,'') like 'audio/%') as audio
       from reel_clips c join sources s on s.id=c.source_id where c.reel_id in ${sql(ids)} order by c.reel_id,c.position`:[];
     const [counts]=await sql<{eligible:number;themes:number}[]>`select
       (select count(*) from sources s join source_permissions p on p.source_id=s.id and p.purpose='public_excerpt' and p.allowed and p.withdrawn_at is null

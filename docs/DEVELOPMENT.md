@@ -13,10 +13,11 @@ This is an independent SvelteKit app based on patterns proven in **Space Between
 - iPad-friendly camera/microphone preview, sound level meter, maximum 3-minute recording, replay and retry
 - Anonymous contributor receipt code, private R2 media upload, administrative playback
 - Generic `sources` + `source_segments` with modality-specific locators. PDFs/imported videos can be added later.
-- Worker-side database schema: orgs, projects, sources, permissions, segments, statements, evidence, themes, edges, highlights, jobs and reports
+- Worker-side database schema: orgs, projects, sources, permissions, segments, statements, evidence, themes, insights, highlights, jobs and reports
 - Standalone processing script: FFmpeg audio extraction, Cloudflare Whisper timestamped transcription, DeepSeek statement/summary/clip suggestion extraction, Cloudflare Qwen embeddings, PostgreSQL graph ingestion
 - Interactive 3D graph of co-occurring topics adapted from Space Between's `3d-force-graph`
 - FFmpeg CLI for captioned, portrait (9:16) highlight reels assembled from multiple approved source excerpts in private R2
+- Telephone simulator at `/phone` (signed-in admins) and a device API for a Raspberry Pi handset, see [DEVICE_API.md](DEVICE_API.md)
 - Recording deletion by private recovery code, including managed source media and derived highlights
 
 ## Deliberate limitations
@@ -92,6 +93,37 @@ Code: `worker/` (container: `src/queue.ts` SQL queue, `ingest.ts`, `render.ts`, 
 - Failed jobs: `select id, kind, attempts, error from processing_jobs where status = 'failed'`. To retry one: `update processing_jobs set status='queued', attempts=0, run_after=now() where id = '…'` (and set its source back to `uploaded` for an ingest job), then wait for the next sweep.
 - Cost: `standard-2` (1 vCPU, 6 GiB) bills memory while running and CPU only when active. A few minutes per interview sits well inside the Workers Paid included allowance. Check Billable Usage after the first week.
 
+## Sources, statements, themes, insights
+
+One chain, each step derived from the one before and linked back to it:
+
+1. **Source** → `source_segments` (timestamped transcript) → **statements**, each citing its segments in `statement_evidence` (`worker/src/analysis.ts`, prompt `analysis_system`).
+2. Statements → **themes**, topic first (`worker/src/topic-match.ts`, migration `016`; this is the default). Membership is `statement_themes`, an edge with a weight:
+   - A chat model lists 1 to 3 **atomic topics** per statement (prompt `topic_extract_system`, editable at `/admin/prompts`): "the laser cutter lab is too expensive" gives "laser cutter lab" and "price". Names and descriptions are English whatever the statement's language. It is shown the themes of the statement's nearest statements and reuses their names. A name made only of words like "ideas" or "next steps" is dropped by code.
+   - Each topic is matched to the project's themes: exact canonical name, then the 3 nearest themes by label embedding. **Jev scores the statement against every candidate** (one request per statement, `buildQuestions` in `theme-match.ts`); that probability is the edge weight in `statement_themes.probability`. An exact name is only a candidate: a sloppy reuse does not get weight 1.
+   - A candidate at 0.5 or more gets the edge (at most 2 per topic). If none does, the topic starts a new theme named as the extractor wrote it. An exact name that Jev scored below 0.5 keeps its edge as `name_match` with Jev's weight. `method` is `seed` (started the theme), `exact`, `embed` or `name_match`; every judgement is also kept in `theme_judgements`.
+   - Eval on 92 statements in 3 orders (`npm run eval:topics`, results in `eval/results/topics-*.json`): the largest theme holds 11 to 13% of statements (16 to 50% with the older method), and two orders agree on which statements share a theme at F1 0.50 (0.32 to 0.40). The number of themes is **not** lower (34 to 43), so expect themes at the grain of "price" or "booking system", many with only a few statements. Jev and Cloudflare's Clef (`worker/src/clef.ts`, `--judge clef`) gave the same quality; Jev is about 5x cheaper per token.
+   - Not done: rewriting a theme's wording as it grows, merging, and the `pending` state (a statement is placed or fails and is retried on the next run). A parent/sub-theme layer was tried (`worker/src/topic-hierarchy.ts`, `npm run eval:topics`): parents read well in small clusters but differed between orders and the judge agreed with nearly every proposal, so it is not in the pipeline.
+   - `npm run themes:assign -- <projectId>` places what is unplaced; `--reset` first saves the current themes and insights to `eval/results/` and starts over; `--insights` derives insights afterwards. `--classic` runs the older method described next.
+
+   **Classic method** (`worker/src/theme-match.ts`, migration `013`; `themes:assign -- --classic`):
+   - The statement's embedding finds its nearest statements; their themes are the candidates (at most 4).
+   - Jev (`worker/src/jev.ts`) is asked one yes/no question per candidate, in a single request: does the statement speak to this issue? A statement can join several themes.
+   - `decide` turns the probabilities into an outcome. Any candidate at 0.6 or more: join those (up to 3). Every candidate at 0.3 or less, or none found: the statement starts a theme, named by the chat model (prompt `theme_name_system`). Anything in between: pending for now.
+   - A run then makes a second, settling pass over what the first left pending: the themes have grown and been rewritten, so each statement is asked again. A candidate at 0.5 or more (more likely than not) is joined; otherwise the statement starts its own theme. Nothing stays pending.
+   - The project question is not used when building themes: not in Jev's state (with it, one theme about "improvements" absorbed 50+ of 92 statements in 2 of 3 orders), not in naming or rewriting. Themes describe what statements are about. It is still used for insights.
+   - A theme's name and description are rewritten each time it has grown by 5 statements (`REWRITE_EVERY`; prompt `theme_rewrite_system`, migration `014`). The check runs right after each statement is placed, so a long batch is judged against wording that follows the theme, not the one statement that started it. The rewriter sees the current wording and up to 40 of the theme's statements and keeps the wording when it still holds. If the new name would equal another theme's, the old wording stays (that is a merge signal). Every change is kept in `theme_renames`. A failed rewrite never undoes a placement and is retried at the theme's next statement.
+   - Every judgement is kept in `theme_judgements`, so thresholds can be changed and re-scored without new calls. Thresholds and question wording live in `theme-match.ts`; bump `THEME_JEV_VERSION` when either changes. Known limit: themes are named from one seed statement, so they start narrow and the run ends with roughly 3x more themes than a person would make (eval, 92 statements: 31 to 37 themes). A theme merge pass (`worker/src/theme-merge.ts`, run at the end of `assignThemes`, or alone with `npm run themes:assign -- <projectId>`) is the fix: themes whose statements overlap (at least 60% of the smaller theme inside the larger, at least 3 in common) are put to Jev as a pair, "are these the same topic, worded differently?", and merged at 0.7. The overlap only nominates; Jev decides. Merges are logged in `theme_merges`. On the Truth and lies project the nominated pairs overlapped 60 to 88% yet Jev put every one at 0.14 to 0.34 (different aspects of one subject), so nothing merged: heavy overlap there means related aspects, not duplicates, and that structure is for a parent/sub-theme step (not built). Pairs kept apart are asked again on every run.
+   - Runs after every finished recording or document. `npm run themes:assign -- <projectId>` places what is unplaced; `--reset` first saves the current themes and insights to `eval/results/` and starts over. `npm run eval:themes` runs the same logic in memory over a frozen statement set in several orders, to measure order sensitivity.
+   - Needs `TYPESAFE_API_KEY` (also a processor secret). The older whole-project pass (`themes.ts`, prompt `themes_system`, `npm run themes:rebuild`) still works and is kept for comparison.
+3. Theme → **insights** (`worker/src/insights.ts`, prompt `insights_system`): one call per theme over that theme's statements. Each insight cites the statements it rests on in `insight_evidence`; the code drops citations the model invented and insights left without evidence.
+
+So an insight resolves to a recording and a timestamp via `insight_evidence → statements → statement_evidence → source_segments → sources`.
+
+Themes and insights are re-derived, never edited. A theme keeps its insights while its basis (model, prompt version, statement set, stored in `themes.insight_basis`) is unchanged; a renamed or dropped theme takes its insights with it. `npm run themes:rebuild` repairs both, `-- --insights` forces every theme.
+
+Not built yet: contradictions (planned for the theme summary first) and edges between insights that cross themes. An earlier pairwise-relation experiment (classifier, Jev, eval harness and rubric) is kept in the local git tag `archive/pairwise-insight-experiment`; its data is still in `eval/`.
+
 ## Theme reels (experimental)
 
 `/dashboard/projects/<id>/reels` composes one highlight reel across **all** interviews instead of within one. Job kinds `compose_reel` and `render_reel`; code in `worker/src/reel.ts`; tables `reels` and `reel_clips` (`db/007_reels.sql`).
@@ -113,6 +145,15 @@ The plan is reviewable (drop clips, watch each original span) before rendering. 
 `source_segments`: text plus optional video `start_ms/end_ms`, PDF `page_number`, or text `char_start/char_end` locators. Every statement points via `statement_evidence` to one or more segments. Highlight generation only accepts video sources with concrete timestamps and suitable permissions. A future PDF importer can generate the exact same segments and graph relationships, but will never be miscounted as a human interview.
 
 An imported context document may influence analysis but **must never inflate participant counts or be presented as a participant's opinion**. Source role and project isolation are explicit in the schema.
+
+### Project context documents
+
+Uploaded on the project page (PDF, TXT or pasted text; `src/lib/server/context.ts`, `src/lib/context-text.ts`) as sources with `role='context'`, cut into passages in `source_segments` (PDF passages keep `page_number`). The `ingest_context` job (`worker/src/context.ts`, migration `db/012_context_jobs.sql`) then:
+
+1. **Embeds the passages.** `retrieveContext` finds the passages closest to an interview's transcript, and `analyze` receives them as BACKGROUND EXCERPTS, to understand what the speaker refers to. They are never a source of statements for that interview. Recordings analysed before a document is ready are not re-analysed automatically.
+2. **Optionally reads the text itself** (the "extract" checkbox) in windows of 24 passages with the `context_system` prompt (editable at `/admin/prompts`). Statements are stored with `source_id` of the context source, so they flow into themes and insights. The job is resumable (`analysis.cursor`, committed with each window, one continuation job at a time) because the queue reaps jobs running over 30 minutes. Roughly 45 model calls for a 1.3M-character book.
+
+Where context statements are kept apart from people: the theme and insight prompts tag interviews `I1..` and the text `T1..` with a note not to count the text as agreement; a theme's `sourceCount` (ranking, "N sources") counts interviews only; the dashboard marks theme counts and evidence "from the text". Reports (`ingest.ts`) still count only `role='contribution'`. To analyse participants alone, filter on `sources.role='contribution'` in the statement queries of `themes.ts` and `insights.ts`.
 
 ## Safety checklist before public pilot
 

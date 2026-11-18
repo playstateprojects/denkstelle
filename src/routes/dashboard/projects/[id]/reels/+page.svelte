@@ -71,7 +71,7 @@
             <p style="margin:8px 0">“{c.text}”</p>
             <div class="row tiny muted" style="flex-wrap:wrap;gap:12px">{#each criteria as k}<span>{tk('reel.c.'+k)} {c.ratings[k]??'–'}</span>{/each}</div>
             {#if c.rationale}<p class="muted tiny" style="margin:4px 0">{c.rationale}</p>{/if}
-            <details style="margin-top:6px"><summary class="tiny">{t('reel.preview')}</summary><video controls playsinline preload="none" src={`/api/dashboard/media/${c.source_id}#t=${(c.start_ms/1000).toFixed(2)},${(c.end_ms/1000).toFixed(2)}`} style="max-height:260px;border-radius:10px;margin-top:6px"></video></details>
+            <details style="margin-top:6px"><summary class="tiny">{t('reel.preview')}</summary>{#if c.audio}<audio controls preload="none" src={`/api/dashboard/media/${c.source_id}#t=${(c.start_ms/1000).toFixed(2)},${(c.end_ms/1000).toFixed(2)}`} style="display:block;width:100%;max-width:420px;margin-top:6px"></audio>{:else}<video controls playsinline preload="none" src={`/api/dashboard/media/${c.source_id}#t=${(c.start_ms/1000).toFixed(2)},${(c.end_ms/1000).toFixed(2)}`} style="max-height:260px;border-radius:10px;margin-top:6px"></video>{/if}</details>
           </div>
         {/each}
       {/if}

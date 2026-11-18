@@ -47,7 +47,7 @@ async function job(sourceId:string,kind:JobKind='transcribe_and_ingest',extra:{h
   return j.id;
 }
 const status=async(id:string)=>(await sql<{status:string;attempts:number;error:string|null;run_after:Date}[]>`select status,attempts,error,run_after from processing_jobs where id=${id}`)[0];
-const handlers=(fn:Handler):Record<JobKind,Handler>=>({transcribe_and_ingest:fn,render_highlight:fn,compose_reel:fn,render_reel:fn});
+const handlers=(fn:Handler):Record<JobKind,Handler>=>({transcribe_and_ingest:fn,render_highlight:fn,compose_reel:fn,render_reel:fn,ingest_context:fn});
 
 test('claims the oldest due job first and marks it running',{skip},async()=>{
   const s=await source();const newer=await job(s,'transcribe_and_ingest',{createdAgo:10}),older=await job(s,'transcribe_and_ingest',{createdAgo:60});

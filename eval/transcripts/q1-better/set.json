@@ -1,0 +1,6 @@
+{
+ "set":"q1-better",
+ "title":"Motionlab",
+ "question":"How could Motionlab be better?",
+ "note":"SYNTHETIC. Fictional interviewees written by Claude to resemble Whisper segments of spoken answers (fillers, false starts, hedging), 6 English + 6 German. Motionlab is treated as a shared lab/workshop space with machines, events and a member community; adjust if that is wrong. Intended hard cases are in plants.meta.json: keep that file away from whoever labels."
+}

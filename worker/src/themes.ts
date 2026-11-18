@@ -10,16 +10,21 @@ import type {Sql} from 'postgres';
 import {modelDef,llmComplete,parseJson,LlmError,type Env} from './models.ts';
 import type {Prompts} from './prompts.ts';
 import {embeddings,vector} from './utils.ts';
+import {sourceLabels,textNote} from './labels.ts';
 
+/** A theme needs statements from at least this many sources. The reference text counts as a source for this
+ * threshold, so a theme only the text raises still exists; its `sourceCount` (the ranking) counts interviews only. */
 export const MIN_SOURCES=1;
 
 const Synthesis=z.object({themes:z.array(z.object({
   name:z.string().min(2),
   description:z.string().default(''),
   statement_ids:z.array(z.number().int().nonnegative()).min(1)
-})).max(40)});
+}))});
 
-export type ThemeStatement={id:string;sourceId:string;text:string};
+/** `fromText`: read from the project's reference text (role 'context'), not said by an interviewee. */
+export type ThemeStatement={id:string;sourceId:string;text:string;fromText?:boolean;sourceTitle?:string};
+/** `sourceCount` is the number of INTERVIEWS behind the theme; the reference text never counts as one. */
 export type SynthesizedTheme={name:string;description:string;statementIds:string[];sourceCount:number};
 export class ThemeError extends LlmError{}
 
@@ -29,15 +34,16 @@ export const canonical=(s:string)=>s.trim().toLowerCase().normalize('NFKC').repl
 export async function synthesize(env:Env,modelId:string,prompts:Prompts,input:{question:string;statements:ThemeStatement[];previous:{name:string;description:string|null}[]})
 :Promise<{themes:SynthesizedTheme[];ms:number}>{
  const def=modelDef(modelId);if(!def)throw new ThemeError(`Unknown model "${modelId}"`);
- const label=new Map<string,number>();
- for(const s of input.statements)if(!label.has(s.sourceId))label.set(s.sourceId,label.size+1);
+ const label=sourceLabels(input.statements);
  if(label.size<MIN_SOURCES)return {themes:[],ms:0};
  const user=[
   `PROJECT QUESTION: ${input.question}`,
   `PREVIOUS THEMES:\n${input.previous.length?input.previous.map(t=>`- ${t.name}${t.description?`: ${t.description}`:''}`).join('\n'):'(none)'}`,
-  `STATEMENTS:\n${input.statements.map((s,i)=>`[${i}] (I${label.get(s.sourceId)}) ${s.text}`).join('\n')}`,
+  ...[textNote(input.statements,label)].filter((x):x is string=>!!x),
+  `STATEMENTS:\n${input.statements.map((s,i)=>`[${i}] (${label.get(s.sourceId)}) ${s.text}`).join('\n')}`,
   'Return JSON.'
  ].join('\n\n');
+ const interviews=new Set(input.statements.filter(s=>!s.fromText).map(s=>s.sourceId));
  const out=await llmComplete(def,env,{system:prompts.text('themes_system'),user,temperature:prompts.number('analysis_temperature')});
  let json:unknown;
  try{json=parseJson(out.raw)}catch{throw new ThemeError(`${def.label} did not return valid JSON`,out.raw,out.ms)}
@@ -51,7 +57,7 @@ export async function synthesize(env:Env,modelId:string,prompts:Prompts,input:{q
   const merged=new Set([...(byName.get(key)?.statementIds??[]),...ids.map(s=>s.id)]);
   const sources=new Set(input.statements.filter(s=>merged.has(s.id)).map(s=>s.sourceId));
   if(sources.size<MIN_SOURCES)continue;
-  byName.set(key,{name:byName.get(key)?.name??name,description:(byName.get(key)?.description||t.description).trim().slice(0,300),statementIds:[...merged],sourceCount:sources.size});
+  byName.set(key,{name:byName.get(key)?.name??name,description:(byName.get(key)?.description||t.description).trim().slice(0,300),statementIds:[...merged],sourceCount:[...sources].filter(id=>interviews.has(id)).length});
  }
  return {themes:[...byName.values()].sort((a,b)=>b.sourceCount-a.sourceCount||b.statementIds.length-a.statementIds.length),ms:out.ms};
 }
@@ -61,10 +67,11 @@ export async function rebuildThemes(sql:Sql,env:Env,modelId:string,prompts:Promp
 :Promise<{themes:SynthesizedTheme[];statements:ThemeStatement[];unthemed:number}>{
  const [project]=await sql<{question:string}[]>`select question from projects where id=${projectId}`;
  if(!project)throw new Error(`No project ${projectId}`);
- const rows=await sql<{id:string;source_id:string;text:string}[]>`
-  select st.id,st.source_id,st.text from statements st join sources s on s.id=st.source_id
+ // Context documents contribute their statements too. A document still being read ('processing') is left out until it is ready.
+ const rows=await sql<{id:string;source_id:string;text:string;from_text:boolean;source_title:string}[]>`
+  select st.id,st.source_id,st.text,s.role='context' as from_text,s.title as source_title from statements st join sources s on s.id=st.source_id
   where st.project_id=${projectId} and s.status='ready' order by s.created_at,st.created_at,st.id`;
- const statements=rows.map(r=>({id:r.id,sourceId:r.source_id,text:r.text}));
+ const statements=rows.map(r=>({id:r.id,sourceId:r.source_id,text:r.text,fromText:r.from_text,sourceTitle:r.source_title}));
  const previous=await sql<{name:string;description:string|null}[]>`select name,description from themes where project_id=${projectId} order by name`;
  const {themes}=await synthesize(env,modelId,prompts,{question:project.question,statements,previous});
  const themed=new Set(themes.flatMap(t=>t.statementIds));
@@ -83,6 +90,8 @@ export async function rebuildThemes(sql:Sql,env:Env,modelId:string,prompts:Promp
    for(const sid of t.statementIds)await tx`insert into statement_themes(statement_id,theme_id) values(${sid},${row.id}) on conflict do nothing`;
   }
   await tx`delete from themes t where t.project_id=${projectId} and not exists (select 1 from statement_themes st where st.theme_id=t.id)`;
+  // Keep the per-statement placement state (db/013) in step with what this pass wrote: unthemed statements are looked at again by themes:assign.
+  await tx`update statements s set theme_status=case when exists (select 1 from statement_themes x where x.statement_id=s.id) then 'assigned' end where s.project_id=${projectId}`;
  });
  return result;
 }

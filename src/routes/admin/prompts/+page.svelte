@@ -127,7 +127,7 @@ Wenn die Stadt da etwas hinstellen würde, Bänke oder so, dann würde ich hinge
               {#if r.ok}
                 <p>{r.extracted.summary}</p>
                 <div class="eyebrow">Statements ({r.extracted.statements.length})</div>
-                <ol class="tiny" style="padding-left:1.2em">{#each r.extracted.statements as s}<li style="margin-bottom:6px">{s.text} <span class="muted">[{s.segment_indexes.join(', ')}] · {s.themes.join(', ')}</span></li>{/each}</ol>
+                <ol class="tiny" style="padding-left:1.2em">{#each r.extracted.statements as s}<li style="margin-bottom:6px">{s.text} <span class="muted">[{s.segment_indexes.join(', ')}]</span></li>{/each}</ol>
                 <div class="eyebrow">Highlights ({r.extracted.highlights.length})</div>
                 <ul class="tiny" style="padding-left:1.2em">{#each r.extracted.highlights as h}<li style="margin-bottom:6px"><strong>{h.title}</strong> [{h.start_segment}–{h.end_segment}] {h.reason}</li>{/each}</ul>
               {:else}

@@ -1,0 +1,13 @@
+// The 12 invented examples from eval/RUBRIC.md. A smoke test only: far too few and too clean to measure anything.
+{"id": "rx-01", "from": "The laser cutter is booked out weeks ahead.", "to": "Den Laserschneider bekommt man erst nach Wochen.", "gold": "equivalent"}
+{"id": "rx-02", "from": "The workshops are too loud.", "to": "It is unbearably loud whenever a workshop runs.", "gold": "equivalent"}
+{"id": "rx-03", "from": "Booking is clunky.", "to": "Booking works fine for me.", "gold": "contradicts"}
+{"id": "rx-04", "from": "Add a fixed workshop programme.", "to": "Please do not organise it.", "gold": "contradicts"}
+{"id": "rx-05", "from": "The laser cutter is always booked.", "to": "The 3D printer is always free.", "gold": "same_topic"}
+{"id": "rx-06", "from": "I want more events in English.", "to": "Ich finde gut, dass vieles auf Englisch läuft.", "gold": "same_topic"}
+{"id": "rx-07", "from": "It is too expensive.", "to": "It is neither cheap nor expensive.", "gold": "same_topic"}
+{"id": "rx-08", "from": "The laser cutter is booked out for weeks.", "to": "Equipment is hard to get.", "gold": "agrees"}
+{"id": "rx-09", "from": "Newcomers get no welcome and nobody shows them the tools.", "to": "Newcomers get no welcome.", "gold": "agrees"}
+{"id": "rx-10", "from": "A cheaper plan for occasional users.", "to": "A student discount.", "gold": "same_topic"}
+{"id": "rx-11", "from": "It could be better in general.", "to": "The booking is clunky.", "gold": "insufficient_context"}
+{"id": "rx-12", "from": "There is no step-free entrance.", "to": "More visiting artists would help.", "gold": "unrelated"}

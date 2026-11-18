@@ -1,4 +1,4 @@
-/** transcribe_and_ingest: FFmpeg audio extraction, Whisper, DeepSeek statement extraction, embeddings, graph ingestion.
+/** transcribe_and_ingest: FFmpeg audio extraction, Whisper, statement extraction, embeddings, then project themes and theme insights.
  * Runs OUTSIDE the SvelteKit Worker (FFmpeg is needed): in the container, or locally via `npm run process:once`.
  * Claiming, retries and job/source status transitions live in queue.ts; this file only does the work and throws on failure.
  */
@@ -7,7 +7,9 @@ import {join,extname} from 'node:path';
 import type {Sql} from 'postgres';
 import {downloadObject,tempWorkspace,ffmpeg,cloudflareAI,embeddings,vector} from './utils.ts';
 import {analyze} from './analysis.ts';
-import {rebuildThemes} from './themes.ts';
+import {assignTopics} from './topic-match.ts';
+import {rebuildInsights} from './insights.ts';
+import {retrieveContext} from './context.ts';
 import {getActiveModel,loadPrompts} from './prompts.ts';
 import {PermanentError,type Job} from './queue.ts';
 
@@ -36,9 +38,10 @@ export async function ingest(sql:Sql,job:Job):Promise<void>{
  await sql`update sources set status='processing',updated_at=now() where id=${job.source_id}`;
  let tmp='';
  try{
-   tmp=await tempWorkspace();const video=join(tmp,`original${extname(source.media_key)}`);const audio=join(tmp,'speech.mp3');
-   await downloadObject(source.media_key,video);
-   await ffmpeg('-i',video,'-vn','-ac','1','-ar','16000','-c:a','libmp3lame','-b:a','48k',audio);
+   // `original` is a video (interview_video) or audio-only (browser audio, device WAV) file; `-vn` drops any video stream, so no video is required.
+   tmp=await tempWorkspace();const original=join(tmp,`original${extname(source.media_key)}`);const audio=join(tmp,'speech.mp3');
+   await downloadObject(source.media_key,original);
+   await ffmpeg('-i',original,'-vn','-ac','1','-ar','16000','-c:a','libmp3lame','-b:a','48k',audio);
    const data=await readFile(audio);
    // Cloudflare Whisper supports an audio base64 input; MP3 is demuxed, never raw video bytes.
    const transcription=await cloudflareAI('@cf/openai/whisper-large-v3-turbo',{audio:data.toString('base64'),task:'transcribe'});
@@ -46,10 +49,13 @@ export async function ingest(sql:Sql,job:Job):Promise<void>{
    if(!segments.length)throw new Error('Whisper returned no timed segments; refusing to invent timestamps');
    // The model and its prompts are chosen in /admin/prompts; each model has its own prompt versions.
    const modelId=await getActiveModel(sql);const prompts=await loadPrompts(sql,modelId);
-   const {extracted}=await analyze(process.env,modelId,prompts,{title:source.title,question:source.question,speakerName:source.contributor_label??undefined,texts:segments.map(s=>s.text)});
+   // Segments are embedded first: the closest passages of the project's reference text (if it has one) go into the analysis as background.
+   // Failing to find any must never fail the interview.
+   const segmentVectors=await embeddings(segments.map(s=>s.text));
+   const background=await retrieveContext(sql,source.project_id,segmentVectors).catch(e=>{console.error('Context retrieval failed; analysing without it:',e instanceof Error?e.message:e);return []});
+   const {extracted}=await analyze(process.env,modelId,prompts,{title:source.title,question:source.question,speakerName:source.contributor_label??undefined,texts:segments.map(s=>s.text),context:background});
    const cleaned=extracted.statements.map(s=>({...s,segment_indexes:[...new Set(s.segment_indexes)].filter(i=>i<segments.length)})).filter(s=>s.segment_indexes.length);
-   const vectors=await embeddings([...segments.map(s=>s.text),...cleaned.map(s=>s.text)]);
-   const segmentVectors=vectors.slice(0,segments.length),statementVectors=vectors.slice(segments.length);
+   const statementVectors=await embeddings(cleaned.map(s=>s.text));
    // Reruns of the same source replace its derived analysis, never the original video.
    await sql`delete from highlights where source_id=${job.source_id} and status='suggested'`;
    await sql`delete from statements where source_id=${job.source_id}`;
@@ -81,11 +87,17 @@ export async function ingest(sql:Sql,job:Job):Promise<void>{
        values(${job.source_id},'Die besten Gedanken',${proposed.map(p=>p.reason).join(' / ').slice(0,500)},${low},${high},${sql.json(proposed)},'suggested')`;
    }
    const newTitle=extracted.title.trim().slice(0,120);
-   await sql`update sources set status='ready',title=coalesce(nullif(${newTitle},''),title),analysis=${sql.json({title:newTitle,summary:extracted.summary,statements:cleaned.length,segments:segments.length,model:modelId,promptVersions:prompts.versions})},processing_model=${'whisper-large-v3-turbo + '+modelId},updated_at=now() where id=${job.source_id}`;
-   // Themes are shared threads across ALL interviews, so they are re-derived now that this one is ready.
-   // A failure here must not fail the job: a retry would redo the whole transcription. `npm run themes:rebuild` repairs it.
-   try{await rebuildThemes(sql,process.env,modelId,prompts,source.project_id)}
-   catch(e){console.error('Theme synthesis failed; interview is ready, run `npm run themes:rebuild`:',e instanceof Error?e.message:e)}
+   await sql`update sources set status='ready',title=coalesce(nullif(${newTitle},''),title),analysis=${sql.json({title:newTitle,summary:extracted.summary,statements:cleaned.length,segments:segments.length,contextPassages:background.length,model:modelId,promptVersions:prompts.versions})},processing_model=${'whisper-large-v3-turbo + '+modelId},updated_at=now() where id=${job.source_id}`;
+   // Themes are shared threads across ALL interviews: each new statement gets 1 to 3 topics, each matched to an existing theme (Jev scores the match) or starting one (worker/src/topic-match.ts).
+   // A failure here must not fail the job: a retry would redo the whole transcription. Unplaced statements are picked up by the
+   // next run, or by `npm run themes:assign -- <projectId>`.
+   // Insights are derived from each theme's statements, so they follow the themes; only themes whose statements changed are redone.
+   try{
+     const t=await assignTopics(sql,process.env,modelId,prompts,source.project_id);
+     for(const f of t.failed)console.error(`Statement ${f.statement} not placed in a theme; \`npm run themes:assign\` retries:`,f.error);
+     const r=await rebuildInsights(sql,process.env,modelId,prompts,source.project_id);
+     for(const f of r.failed)console.error(`Insights for theme "${f.theme}" failed; \`npm run themes:assign -- <projectId> --insights\` retries:`,f.error);
+   }catch(e){console.error('Theme assignment failed; interview is ready, run `npm run themes:assign`:',e instanceof Error?e.message:e)}
    // Deterministic aggregates, never fabricate agreement/contestation from raw counts.
    const counts=await sql<{name:string;mentions:number}[]>`select t.name,count(distinct st.source_id)::int as mentions from themes t join statement_themes x on x.theme_id=t.id join statements st on st.id=x.statement_id where t.project_id=${source.project_id} group by t.id order by mentions desc limit 20`;
    const total=await sql<{n:number}[]>`select count(*)::int as n from sources where project_id=${source.project_id} and status='ready' and role='contribution'`;
